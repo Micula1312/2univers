@@ -156,3 +156,203 @@ body {
     transform: translateY(0);
   }
 }
+
+
+#archive {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* cornice/mask overlay tipo keyvisual */
+.keyvisual-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+:root {
+  --frame-thickness: 16px;
+  --corner-size: 72px;
+  --frame-metal: linear-gradient(135deg, #20242b 0%, #353a43 45%, #171a20 100%);
+}
+
+.frame-piece,
+.frame-corner {
+  position: absolute;
+  background: var(--frame-metal);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 0 18px rgba(255,255,255,0.03),
+    inset 0 0 28px rgba(0,0,0,0.35);
+}
+
+/* lati */
+.frame-piece--top {
+  top: 0;
+  left: calc(var(--corner-size) - 2px);
+  right: calc(var(--corner-size) - 2px);
+  height: var(--frame-thickness);
+}
+
+.frame-piece--bottom {
+  bottom: 0;
+  left: calc(var(--corner-size) - 2px);
+  right: calc(var(--corner-size) - 2px);
+  height: var(--frame-thickness);
+}
+
+.frame-piece--left {
+  top: calc(var(--corner-size) - 2px);
+  bottom: calc(var(--corner-size) - 2px);
+  left: 0;
+  width: var(--frame-thickness);
+}
+
+.frame-piece--right {
+  top: calc(var(--corner-size) - 2px);
+  bottom: calc(var(--corner-size) - 2px);
+  right: 0;
+  width: var(--frame-thickness);
+}
+
+/* angoli inclinati */
+.frame-corner--tl {
+  top: 0;
+  left: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.frame-corner--tr {
+  top: 0;
+  right: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.frame-corner--br {
+  bottom: 0;
+  right: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.frame-corner--bl {
+  bottom: 0;
+  left: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+/* profilo interno sottile */
+.keyvisual-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  clip-path: polygon(
+    var(--corner-size) 0,
+    calc(100% - var(--corner-size)) 0,
+    100% var(--corner-size),
+    100% calc(100% - var(--corner-size)),
+    calc(100% - var(--corner-size)) 100%,
+    var(--corner-size) 100%,
+    0 calc(100% - var(--corner-size)),
+    0 var(--corner-size)
+  );
+}
+/* leggero velo grigio sopra la scena */
+#archive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 17;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.03), rgba(0,0,0,0.12) 72%),
+    linear-gradient(to bottom, rgba(180, 185, 195, 0.06), rgba(20, 22, 28, 0.08));
+  mix-blend-mode: screen;
+}
+
+.time-map-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 19;
+  pointer-events: none;
+}
+
+.camera-controls {
+  z-index: 25;
+}
+
+.track-sheet {
+  z-index: 30;
+}
+
+
+.corner-logo {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  z-index: 22;
+  opacity: 0.92;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.08));
+}
+
+/* top left */
+.corner-logo--tl {
+  top: 14px;
+  left: 14px;
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
+/* top right */
+.corner-logo--tr {
+  top: 14px;
+  right: 14px;
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+/* bottom right */
+.corner-logo--br {
+  bottom: 14px;
+  right: 14px;
+  transform: rotate(135deg);
+  transform-origin: center;
+}
+
+/* bottom left */
+.corner-logo--bl {
+  bottom: 14px;
+  left: 14px;
+  transform: rotate(-135deg);
+  transform-origin: center;
+}
+
+
+.glass-overlay{
+
+  backdrop-filter: blur(26px);
+
+  background:
+  radial-gradient(
+    circle at center,
+    rgba(255,255,255,0.08),
+    rgba(255,255,255,0.02) 40%,
+    rgba(0,0,0,0.18) 100%
+  );
+}
