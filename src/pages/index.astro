@@ -1,6 +1,5 @@
 ---
 import "../styles/global.css";
-import mainScript from "../scripts/app/main.js?url";
 ---
 
 <html lang="en">
@@ -16,7 +15,7 @@ import mainScript from "../scripts/app/main.js?url";
         <h1>2Univers</h1>
       </div>
 
-		<div class="camera-controls">
+      <div class="camera-controls">
         <button id="zoomIn" type="button">+</button>
         <button id="zoomOut" type="button">−</button>
         <button id="resetView" type="button">Reset</button>
@@ -27,17 +26,18 @@ import mainScript from "../scripts/app/main.js?url";
       <div id="trackSheet" class="track-sheet" aria-hidden="true">
         <button id="closeSheet" class="track-sheet__close" type="button">×</button>
         <div class="track-sheet__inner">
-          <p class="track-sheet__eyebrow">Audio track</p>
+          <p class="track-sheet__eyebrow">Audio trace</p>
           <h2 id="trackTitle" class="track-sheet__title">Trace</h2>
           <p id="trackMeta" class="track-sheet__meta">Day 1 · Slot 1</p>
-
-          <button id="fakePlay" class="track-sheet__play" type="button">
-            Play
-          </button>
+          <button id="fakePlay" class="track-sheet__play" type="button">Play</button>
         </div>
       </div>
     </main>
 
-    <script type="module" src={mainScript}></script>
+    <script>
+      import { initArchive } from "../scripts/archive3d/archive-scene.js";
+
+      initArchive();
+    </script>
   </body>
 </html>
