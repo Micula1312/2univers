@@ -115,40 +115,34 @@ export function initArchiveCluster() {
 
       uniform vec2 resolution;
 
-void main() {
-  vec2 uv = gl_FragCoord.xy / resolution.xy;
+      void main() {
+        vec2 uv = gl_FragCoord.xy / resolution.xy;
 
-  // posizione della linea
-  float horizon = 1.01;
+        float horizon = 0.60;
+        float split = smoothstep(horizon + 0.03, horizon - 0.03, uv.y);
 
-  // morbidezza della transizione principale
-  float split = smoothstep(horizon + 0.03, horizon - 0.03, uv.y);
+        vec3 topGrad = mix(leftColorA, leftColorB, smoothstep(0.0, 0.30, uv.y));
+        topGrad = mix(topGrad, leftColorC, smoothstep(0.28, 0.48, uv.y));
 
-  vec3 topGrad = mix(leftColorA, leftColorB, smoothstep(0.0, 0.30, uv.y));
-  topGrad = mix(topGrad, leftColorC, smoothstep(0.28, 0.48, uv.y));
+        vec3 bottomGrad = mix(rightColorA, rightColorB, smoothstep(0.52, 0.75, uv.y));
+        bottomGrad = mix(bottomGrad, rightColorC, smoothstep(0.75, 1.0, uv.y));
 
-  vec3 bottomGrad = mix(rightColorA, rightColorB, smoothstep(0.52, 0.75, uv.y));
-  bottomGrad = mix(bottomGrad, rightColorC, smoothstep(0.75, 1.0, uv.y));
+        vec3 base = mix(topGrad, bottomGrad, split);
 
-  vec3 base = mix(topGrad, bottomGrad, split);
+        float tex1 = 1.0 - smoothstep(0.0, 0.42, distance(uv, vec2(0.20, 0.40)));
+        float tex2 = 1.0 - smoothstep(0.0, 0.40, distance(uv, vec2(0.80, 0.60)));
 
-  // texture morbida
-  float tex1 = 1.0 - smoothstep(0.0, 0.42, distance(uv, vec2(0.20, 0.40)));
-  float tex2 = 1.0 - smoothstep(0.0, 0.40, distance(uv, vec2(0.80, 0.60)));
+        base *= mix(1.0, 0.72, tex1 * 0.35);
+        base += vec3(1.0) * tex2 * 0.05;
 
-  base *= mix(1.0, 0.72, tex1 * 0.35);
-  base += vec3(1.0) * tex2 * 0.05;
+        float glow = 1.0 - smoothstep(0.0, 0.08, abs(uv.y - horizon));
+        base += vec3(1.0) * glow * 0.10;
 
-  // glow sottile sulla linea di separazione
-  float glow = 1.0 - smoothstep(0.0, 0.08, abs(uv.y - horizon));
-  base += vec3(1.0) * glow * 0.10;
+        float mist = 1.0 - smoothstep(0.0, 0.32, distance(uv, vec2(0.5, horizon)));
+        base += vec3(1.0) * mist * 0.06;
 
-  // foschia centrale
-  float mist = 1.0 - smoothstep(0.0, 0.32, distance(uv, vec2(0.5, horizon)));
-  base += vec3(1.0) * mist * 0.06;
-
-  gl_FragColor = vec4(base, 1.0);
-}
+        gl_FragColor = vec4(base, 1.0);
+      }
     `
   });
 
