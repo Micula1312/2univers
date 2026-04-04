@@ -57,13 +57,31 @@ export async function initArchiveCluster() {
   container.innerHTML = "";
   container.appendChild(renderer.domElement);
 
+  const overlayImages = [
+      "/images/bg-overlay-1.jpg",
+      "/images/bg-overlay-2.jpg",
+      "/images/bg-overlay-3.jpg"
+    ];
+
+    const randomOverlay =
+      overlayImages[Math.floor(Math.random() * overlayImages.length)];
+
+    let bgOverlay = container.querySelector(".bg-texture-overlay");
+    if (!bgOverlay) {
+      bgOverlay = document.createElement("div");
+      bgOverlay.className = "bg-texture-overlay";
+      container.appendChild(bgOverlay);
+    }
+
+    bgOverlay.style.backgroundImage = `url("${randomOverlay}")`;
+
   let frame = container.querySelector(".keyvisual-frame");
   if (!frame) {
     frame = document.createElement("div");
     frame.className = "keyvisual-frame";
     frame.innerHTML = `
-      <img class="center-logo center-logo--top" src="/images/corner-logo.png" alt="">
-      <img class="center-logo center-logo--bottom" src="/images/corner-logo-1.png" alt="">
+      <img class="center-logo center-logo--top" src="/images/corner-logo-1.png" alt="">
+      <img class="center-logo center-logo--bottom" src="/images/corner-logo.png" alt="">
     `;
     container.appendChild(frame);
   }
@@ -179,7 +197,7 @@ void main() {
     blending: THREE.AdditiveBlending
   });
   const halo = new THREE.Sprite(haloMaterial);
-  halo.scale.set(10, 10, 1);
+  halo.scale.set(7, 7, 1);
   scene.add(halo);
 
   const haloOuterMaterial = new THREE.SpriteMaterial({
@@ -194,21 +212,6 @@ void main() {
   haloOuter.scale.set(18, 18, 1);
   scene.add(haloOuter);
 
-  const logoTexture = new THREE.TextureLoader().load("/images/donfeng-logo.png");
-  logoTexture.colorSpace = THREE.SRGBColorSpace;
-
-  const logoMaterial = new THREE.SpriteMaterial({
-    map: logoTexture,
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false
-  });
-
-  const logoSprite = new THREE.Sprite(logoMaterial);
-  logoSprite.position.set(0, 0, 1.18);
-  logoSprite.scale.set(1.7, 1.7, 1);
-  core.add(logoSprite);
 
   const CONFIG = {
     days: 7,
@@ -575,8 +578,6 @@ void main() {
 
     haloOuter.material.opacity = 0.16 + pulse * 0.12;
     haloOuter.scale.setScalar(16.5 + pulse * 2.2);
-
-    logoSprite.material.opacity = 0.9 + Math.sin(time * 1.2) * 0.03;
 
     for (const line of rayLines) {
       line.material.opacity = 0.18 * (1 - layoutLerp);

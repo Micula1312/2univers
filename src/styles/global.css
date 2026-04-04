@@ -229,36 +229,31 @@ body {
 .view-controls {
 
   position: absolute;
-  left: 50%;
-  bottom: 28px;
-
-  transform: translateX(-50%);
+  left: 16px;
+  bottom: 16px;
 
   display: flex;
-  gap: 10px;
-
+  flex-direction: column;
+  gap: 8px;
+  align-items: start;
   z-index: 30;
 }
 
 /* usa lo stesso stile dei camera buttons */
 
 .view-controls button {
+  appearance: none;
+  border: 0;
 
   font-family: inherit;
-  font-size: 11px;
-
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 12px;
 
   padding: 8px 14px;
 
-  background: rgba(30,30,35,.45);
-  border: 1px solid rgba(255,255,255,.18);
-
-  color: rgba(255,255,255,.82);
-
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  backdrop-filter: blur(10px);
 
   cursor: pointer;
 
@@ -267,6 +262,7 @@ body {
     border-color .2s ease,
     color .2s ease;
 }
+
 
 /* hover */
 
@@ -287,3 +283,30 @@ body {
 
   color: white;
 }
+
+
+.bg-texture-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+
+  opacity: 0.52;
+  mix-blend-mode:hard-light;
+}
+/* .bg-texture-overlay {
+  animation: bgTextureDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes bgTextureDrift {
+  0% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.06) translate3d(-1.5%, 1%, 0);
+  }
+} */
