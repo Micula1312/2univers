@@ -11,7 +11,7 @@ let layoutLerp = 0;
 const rayLines = [];
 const dayLabels = [];
 
-export function initArchiveCluster() {
+export async function initArchiveCluster() {
   const container = document.getElementById("archive");
   if (!container) return;
 
@@ -36,6 +36,10 @@ export function initArchiveCluster() {
   layoutLerp = 0;
   rayLines.length = 0;
   dayLabels.length = 0;
+
+  let archiveData = [];
+  let currentAudio = null;
+  let currentTrackData = null;
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x05070b, 0.02);
@@ -286,6 +290,19 @@ void main() {
         clearcoatRoughness: 0.18
       });
 
+      async function loadArchiveData() {
+        try {
+          const res = await fetch("/data/archive.json");
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          archiveData = Array.isArray(json?.tracks) ? json.tracks : [];
+        } catch (err) {
+          console.error("Errore caricamento archive.json:", err);
+          archiveData = [];
+        }
+      }
+      await loadArchiveData();
+
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
       const distance = (t + 1) * CONFIG.slotDistance;
 
@@ -311,11 +328,20 @@ void main() {
         Math.random() - 0.5
       ).normalize();
 
+      const trackData = archiveData.find(
+        (item) => item.day === r + 1 && item.slot === t + 1
+      ) || null;
+
       sphere.userData = {
         ray: r,
         slot: t,
-        title: `Stella ${String(t + 1).padStart(2, "0")}:00`,
-        meta: `Giorno ${r + 1} · Fascia ${t + 1}`,
+        title: trackData?.title || `Stella ${String(t + 1).padStart(2, "0")}:00`,
+        meta: trackData
+          ? `Giorno ${trackData.day} · Fascia ${trackData.slot}`
+          : `Giorno ${r + 1} · Fascia ${t + 1}`,
+
+        trackData,
+
         clusterPosition: clusterPosition.clone(),
         listPosition: listPosition.clone(),
         pulseOffset: Math.random() * Math.PI * 2,
@@ -348,13 +374,22 @@ void main() {
     });
   }
 
-  function openSheet(data) {
-    if (!sheet || !titleEl || !metaEl) return;
-    titleEl.textContent = data.title;
-    metaEl.textContent = data.meta;
-    sheet.classList.add("is-open");
-    sheet.setAttribute("aria-hidden", "false");
-  }
+    function openSheet(data) {
+      if (!sheet || !titleEl || !metaEl) return;
+
+      currentTrackData = data.trackData || null;
+
+      titleEl.textContent = data.title;
+      metaEl.textContent = data.meta;
+
+      if (fakePlayBtn) {
+        fakePlayBtn.disabled = !currentTrackData?.audio;
+        fakePlayBtn.textContent = currentAudio && !currentAudio.paused ? "Pause" : "Play";
+      }
+
+      sheet.classList.add("is-open");
+      sheet.setAttribute("aria-hidden", "false");
+    }
 
   function closeSheet(event) {
     event?.stopPropagation();
@@ -365,6 +400,12 @@ void main() {
     sheet.setAttribute("aria-hidden", "true");
     selectedSphere = null;
     hoveredSphere = null;
+
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    if (fakePlayBtn) fakePlayBtn.textContent = "Play";
   }
 
   closeSheetBtn?.addEventListener("click", closeSheet);
@@ -376,8 +417,34 @@ void main() {
     event.stopPropagation();
   });
 
-  fakePlayBtn?.addEventListener("click", () => {
-    fakePlayBtn.textContent = fakePlayBtn.textContent === "Play" ? "Pause" : "Play";
+  fakePlayBtn?.addEventListener("click", async () => {
+    if (!currentTrackData?.audio) return;
+
+    if (!currentAudio || currentAudio.src !== window.location.origin + currentTrackData.audio) {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      currentAudio = new Audio(currentTrackData.audio);
+      currentAudio.preload = "auto";
+
+      currentAudio.addEventListener("ended", () => {
+        if (fakePlayBtn) fakePlayBtn.textContent = "Play";
+      });
+    }
+
+    if (currentAudio.paused) {
+      try {
+        await currentAudio.play();
+        fakePlayBtn.textContent = "Pause";
+      } catch (err) {
+        console.error("Errore riproduzione audio:", err);
+      }
+    } else {
+      currentAudio.pause();
+      fakePlayBtn.textContent = "Play";
+    }
   });
 
   zoomInBtn?.addEventListener("click", () => {

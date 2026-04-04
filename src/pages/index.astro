@@ -21,10 +21,10 @@ import "../styles/global.css";
         <button id="resetView" type="button">Reset</button>
       </div>
 
-      <div class="view-controls">
-      <button id="viewCluster" type="button">Cosmic</button>
-      <button id="viewList" type="button">Archive</button>
-    </div>
+ <div class="view-controls">
+  <button id="viewCluster" class="btn active">Cosmic</button>
+  <button id="viewList" class="btn">Archive</button>
+</div>
 
 	  <div id="labelLayer" class="label-layer"></div>
       <div id="archive"></div>
@@ -43,7 +43,7 @@ import "../styles/global.css";
     <script>
       import { initArchiveApp } from "../scripts/archive3d/archive-main.js";
 
-      initArchiveApp();
+      await initArchiveApp();
     </script>
   </body>
 </html>
