@@ -11,15 +11,20 @@ import "../styles/global.css";
 
   <body>
     <main id="app">
-      <div class="intro">
+      <!-- <div class="intro">
         <h1>2Univers</h1>
-      </div>
+      </div> -->
 
       <div class="camera-controls">
         <button id="zoomIn" type="button">+</button>
         <button id="zoomOut" type="button">−</button>
         <button id="resetView" type="button">Reset</button>
       </div>
+
+      <div class="view-controls">
+      <button id="viewCluster" type="button">Cosmic</button>
+      <button id="viewList" type="button">Archive</button>
+    </div>
 
 	  <div id="labelLayer" class="label-layer"></div>
       <div id="archive"></div>
@@ -36,9 +41,9 @@ import "../styles/global.css";
     </main>
 
     <script>
-      import { initArchive } from "../scripts/archive3d/archive-scene.js";
+      import { initArchiveApp } from "../scripts/archive3d/archive-main.js";
 
-      initArchive();
+      initArchiveApp();
     </script>
   </body>
 </html>

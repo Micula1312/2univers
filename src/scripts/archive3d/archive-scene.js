@@ -1,9 +1,22 @@
 import * as THREE from "three";
 
-export function initArchive() {
+let animationId = null;
+let rendererInstance = null;
+let resizeHandler = null;
+
+let layoutMode = "cluster";
+let layoutTarget = 0; // 0 = cluster, 1 = list
+let layoutLerp = 0;
+
+const rayLines = [];
+const dayLabels = [];
+
+export function initArchiveCluster() {
   const container = document.getElementById("archive");
-  const overlay = document.getElementById("timeMapOverlay");
   if (!container) return;
+
+  const labelLayer = document.getElementById("labelLayer");
+  if (labelLayer) labelLayer.innerHTML = "";
 
   const sheet = document.getElementById("trackSheet");
   const closeSheetBtn = document.getElementById("closeSheet");
@@ -18,66 +31,43 @@ export function initArchive() {
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
+  layoutMode = "cluster";
+  layoutTarget = 0;
+  layoutLerp = 0;
+  rayLines.length = 0;
+  dayLabels.length = 0;
+
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x05070b, 0.03);
+  scene.fog = new THREE.FogExp2(0x05070b, 0.02);
 
   const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
   camera.position.set(0, 6, 20);
   camera.lookAt(0, 0, 0);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  rendererInstance = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = rendererInstance;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   renderer.setClearColor(0x05070b, 1);
+
   container.innerHTML = "";
   container.appendChild(renderer.domElement);
 
-  // -------------------------------------------------
-  // DOM frame overlay (cornice keyvisual)
-  // -------------------------------------------------
-let frame = container.querySelector(".keyvisual-frame");
-if (!frame) {
-  frame = document.createElement("div");
-  frame.className = "keyvisual-frame";
-  frame.innerHTML = `
-    <div class="frame-piece frame-piece--top"></div>
-    <div class="frame-piece frame-piece--right"></div>
-    <div class="frame-piece frame-piece--bottom"></div>
-    <div class="frame-piece frame-piece--left"></div>
-
-    <div class="frame-corner frame-corner--tl"></div>
-    <div class="frame-corner frame-corner--tr"></div>
-    <div class="frame-corner frame-corner--br"></div>
-    <div class="frame-corner frame-corner--bl"></div>
-
-    <img class="corner-logo corner-logo--tl" src="/images/corner-logo.png" alt="">
-    <img class="corner-logo corner-logo--tr" src="/images/corner-logo-1.png" alt="">
-    <img class="corner-logo corner-logo--br" src="/images/corner-logo.png" alt="">
-    <img class="corner-logo corner-logo--bl" src="/images/corner-logo-1.png" alt="">
-  `;
-  container.appendChild(frame);
-}
-
-  const cornerNames = ["tl", "tr", "br", "bl"];
-
-cornerNames.forEach((pos) => {
-  let logo = frame.querySelector(`.corner-logo--${pos}`);
-  if (!logo) {
-    logo = document.createElement("img");
-    logo.className = `corner-logo corner-logo--${pos}`;
-    logo.src = "/logo-corner.png";
-    logo.alt = "";
-    frame.appendChild(logo);
+  let frame = container.querySelector(".keyvisual-frame");
+  if (!frame) {
+    frame = document.createElement("div");
+    frame.className = "keyvisual-frame";
+    frame.innerHTML = `
+      <img class="center-logo center-logo--top" src="/images/corner-logo.png" alt="">
+      <img class="center-logo center-logo--bottom" src="/images/corner-logo-1.png" alt="">
+    `;
+    container.appendChild(frame);
   }
-});
 
-  // -------------------------------------------------
-  // LIGHTS
-  // -------------------------------------------------
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0xffffff, 2.5, 200);
+  const pointLight = new THREE.PointLight(0xffffff, 2.4, 200);
   pointLight.position.set(8, 10, 14);
   scene.add(pointLight);
 
@@ -85,125 +75,137 @@ cornerNames.forEach((pos) => {
   pointLight2.position.set(-10, -6, 10);
   scene.add(pointLight2);
 
-  const hemi = new THREE.HemisphereLight(0xd8c6a6, 0x31466f, 1.1);
+  const hemi = new THREE.HemisphereLight(0xd8c6a6, 0x31466f, 1.05);
   scene.add(hemi);
 
-
-const glass = document.createElement("div");
-glass.className = "glass-overlay";
-container.appendChild(glass);
-
-
-
-
-  // -------------------------------------------------
-  // BACKGROUND: two universes + horizontal light beam
-  // -------------------------------------------------
-  const bgGeometry = new THREE.SphereGeometry(140, 80, 80);
+  const bgGeometry = new THREE.SphereGeometry(220, 64, 64);
 
   const bgMaterial = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     uniforms: {
-      topColor: { value: new THREE.Color("#d7c2a0") },
-      bottomColor: { value: new THREE.Color("#4e6288") },
-      splitSoftness: { value: 0.08 },
-      vignetteStrength: { value: 0.55 },
+      leftColorA: { value: new THREE.Color("#988061") },
+      leftColorB: { value: new THREE.Color("#c8b08f") },
+      leftColorC: { value: new THREE.Color("#d8c4a6") },
+
+      rightColorA: { value: new THREE.Color("#2a3446") },
+      rightColorB: { value: new THREE.Color("#42536f") },
+      rightColorC: { value: new THREE.Color("#6d7f9f") },
+
       resolution: { value: new THREE.Vector2(width, height) }
     },
     vertexShader: `
       varying vec3 vWorldPosition;
-      varying vec3 vNormalDir;
 
       void main() {
         vec4 worldPosition = modelMatrix * vec4(position, 1.0);
         vWorldPosition = worldPosition.xyz;
-        vNormalDir = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * viewMatrix * worldPosition;
       }
     `,
-  fragmentShader: `
-    varying vec3 vWorldPosition;
-    varying vec3 vNormalDir;
+    fragmentShader: `
+      varying vec3 vWorldPosition;
 
-    uniform vec3 topColor;
-    uniform vec3 bottomColor;
-    uniform float splitSoftness;
-    uniform float vignetteStrength;
-    uniform vec2 resolution;
+      uniform vec3 leftColorA;
+      uniform vec3 leftColorB;
+      uniform vec3 leftColorC;
 
-    void main() {
-      float y = gl_FragCoord.y / resolution.y;
-      float split = smoothstep(0.999 - splitSoftness, 0.999 + splitSoftness, y);
-      vec3 base = mix(bottomColor, topColor, split);
+      uniform vec3 rightColorA;
+      uniform vec3 rightColorB;
+      uniform vec3 rightColorC;
 
-      float archShade = smoothstep(
-        -0.8,
-        0.9,
-        sin(vWorldPosition.x * 0.08) * 0.25 + (vWorldPosition.y / 25.0) * 0.9
-      );
-      base *= mix(0.82, 1.08, archShade);
+      uniform vec2 resolution;
 
-      float edge = dot(normalize(vNormalDir), vec3(0.0, 0.0, 1.0));
-      float vignette = smoothstep(-0.8, 0.6, edge);
-      base *= mix(1.0 - vignetteStrength, 1.0, vignette);
+void main() {
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
 
-      gl_FragColor = vec4(base, 1.0);
-    }
+  // posizione della linea
+  float horizon = 1.01;
+
+  // morbidezza della transizione principale
+  float split = smoothstep(horizon + 0.03, horizon - 0.03, uv.y);
+
+  vec3 topGrad = mix(leftColorA, leftColorB, smoothstep(0.0, 0.30, uv.y));
+  topGrad = mix(topGrad, leftColorC, smoothstep(0.28, 0.48, uv.y));
+
+  vec3 bottomGrad = mix(rightColorA, rightColorB, smoothstep(0.52, 0.75, uv.y));
+  bottomGrad = mix(bottomGrad, rightColorC, smoothstep(0.75, 1.0, uv.y));
+
+  vec3 base = mix(topGrad, bottomGrad, split);
+
+  // texture morbida
+  float tex1 = 1.0 - smoothstep(0.0, 0.42, distance(uv, vec2(0.20, 0.40)));
+  float tex2 = 1.0 - smoothstep(0.0, 0.40, distance(uv, vec2(0.80, 0.60)));
+
+  base *= mix(1.0, 0.72, tex1 * 0.35);
+  base += vec3(1.0) * tex2 * 0.05;
+
+  // glow sottile sulla linea di separazione
+  float glow = 1.0 - smoothstep(0.0, 0.08, abs(uv.y - horizon));
+  base += vec3(1.0) * glow * 0.10;
+
+  // foschia centrale
+  float mist = 1.0 - smoothstep(0.0, 0.32, distance(uv, vec2(0.5, horizon)));
+  base += vec3(1.0) * mist * 0.06;
+
+  gl_FragColor = vec4(base, 1.0);
+}
     `
   });
 
   const bgSphere = new THREE.Mesh(bgGeometry, bgMaterial);
   scene.add(bgSphere);
 
-
-
-  // -------------------------------------------------
-  // CORE + LOGO
-  // -------------------------------------------------
-  const coreGeometry = new THREE.SphereGeometry(1.1, 40, 40);
+  const coreGeometry = new THREE.SphereGeometry(1.15, 48, 48);
   const coreMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf6f4ef,
+    color: 0xffffff,
     emissive: 0xffffff,
-    emissiveIntensity: 1.25,
-    metalness: 0.06,
-    roughness: 0.25
+    emissiveIntensity: 1.7,
+    metalness: 0.02,
+    roughness: 0.18
   });
   const core = new THREE.Mesh(coreGeometry, coreMaterial);
   scene.add(core);
 
-  // alone luminoso attorno al nucleo
-  const haloGeom = new THREE.SpriteMaterial({
+  const haloMaterial = new THREE.SpriteMaterial({
     map: createGlowTexture(),
     color: 0xffffff,
     transparent: true,
-    opacity: 0.65,
+    opacity: 0.72,
     depthWrite: false,
     blending: THREE.AdditiveBlending
   });
-  const halo = new THREE.Sprite(haloGeom);
-  halo.scale.set(6.8, 6.8, 1);
+  const halo = new THREE.Sprite(haloMaterial);
+  halo.scale.set(10, 10, 1);
   scene.add(halo);
 
-  // logo sprite centrale
-const logoTexture = new THREE.TextureLoader().load("/images/donfeng-logo.png");
-logoTexture.colorSpace = THREE.SRGBColorSpace;
-const logoMaterial = new THREE.SpriteMaterial({
-  map: logoTexture,
-  color: 0xffffff,
-  transparent: true,
-  opacity: 0.95,
-  depthWrite: false
-});
+  const haloOuterMaterial = new THREE.SpriteMaterial({
+    map: createGlowTexture(),
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const haloOuter = new THREE.Sprite(haloOuterMaterial);
+  haloOuter.scale.set(18, 18, 1);
+  scene.add(haloOuter);
 
-const logoSprite = new THREE.Sprite(logoMaterial);
-logoSprite.position.set(0, -2.4, 0);
-logoSprite.scale.set(2.4, 2.4, 1);
+  const logoTexture = new THREE.TextureLoader().load("/images/donfeng-logo.png");
+  logoTexture.colorSpace = THREE.SRGBColorSpace;
 
-scene.add(logoSprite);
+  const logoMaterial = new THREE.SpriteMaterial({
+    map: logoTexture,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false
+  });
 
-  // -------------------------------------------------
-  // ARCHIVE CONFIG
-  // -------------------------------------------------
+  const logoSprite = new THREE.Sprite(logoMaterial);
+  logoSprite.position.set(0, 0, 1.18);
+  logoSprite.scale.set(1.7, 1.7, 1);
+  core.add(logoSprite);
+
   const CONFIG = {
     days: 7,
     tracksPerDay: 12,
@@ -239,128 +241,113 @@ scene.add(logoSprite);
   const CAMERA_MAX = 32;
   const CAMERA_DEFAULT = 20;
 
+  const dayGap = 2.6;
+  const itemGap = 0.72;
+  const labelGap = 1.0;
+
+  const totalListHeight =
+    CONFIG.days * CONFIG.tracksPerDay * itemGap +
+    (CONFIG.days - 1) * (dayGap - itemGap);
+
+  const listTopY = totalListHeight / 2;
+
   function getTouchDistance(t1, t2) {
     const dx = t2.clientX - t1.clientX;
     const dy = t2.clientY - t1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-for (let r = 0; r < CONFIG.days; r++) {
-  // distribuzione sferica attorno al nucleo
-  const phi = Math.acos(1 - 2 * ((r + 0.5) / CONFIG.days));
-  const theta = Math.PI * (1 + Math.sqrt(5)) * r;
+  for (let r = 0; r < CONFIG.days; r++) {
+    const phi = Math.acos(1 - 2 * ((r + 0.5) / CONFIG.days));
+    const theta = Math.PI * (1 + Math.sqrt(5)) * r;
 
-  const dir = new THREE.Vector3(
-    Math.sin(phi) * Math.cos(theta),
-    Math.cos(phi),
-    Math.sin(phi) * Math.sin(theta)
-  ).normalize();
+    const dir = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    ).normalize();
 
-  const endPoint = dir
-    .clone()
-    .multiplyScalar(CONFIG.tracksPerDay * CONFIG.slotDistance + 0.5);
+    const endPoint = dir.clone().multiplyScalar(CONFIG.tracksPerDay * CONFIG.slotDistance + 0.5);
 
-  const points = [new THREE.Vector3(0, 0, 0), endPoint];
-  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-  const line = new THREE.Line(lineGeometry, lineMaterial);
-  archiveGroup.add(line);
+    const points = [new THREE.Vector3(0, 0, 0), endPoint];
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(lineGeometry, lineMaterial);
+    archiveGroup.add(line);
+    rayLines.push(line);
 
-  for (let t = 0; t < CONFIG.tracksPerDay; t++) {
-    const sphereMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf2ede4,
-      emissive: 0x8f98ad,
-      emissiveIntensity: 0.32,
-      metalness: 0.1,
-      roughness: 0.38
+    for (let t = 0; t < CONFIG.tracksPerDay; t++) {
+      const sphereMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xf5f1ea,
+        emissive: 0x7387b8,
+        emissiveIntensity: 0.18,
+        metalness: 0.02,
+        roughness: 0.22,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.18
+      });
+
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      const distance = (t + 1) * CONFIG.slotDistance;
+
+      const wobble = new THREE.Vector3(
+        (Math.random() - 0.5) * CONFIG.wobbleAmount,
+        (Math.random() - 0.5) * CONFIG.wobbleAmount,
+        (Math.random() - 0.5) * CONFIG.wobbleAmount
+      );
+
+      sphere.position.copy(dir.clone().multiplyScalar(distance).add(wobble));
+      const clusterPosition = sphere.position.clone();
+
+      const listIndexBeforeDay = r * CONFIG.tracksPerDay;
+      const extraOffset = r * (dayGap - itemGap);
+      const absoluteIndex = listIndexBeforeDay + t;
+
+      const listY = listTopY - (absoluteIndex * itemGap + extraOffset);
+      const listPosition = new THREE.Vector3(0, listY, 0);
+
+      const driftAxis = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5
+      ).normalize();
+
+      sphere.userData = {
+        ray: r,
+        slot: t,
+        title: `Stella ${String(t + 1).padStart(2, "0")}:00`,
+        meta: `Giorno ${r + 1} · Fascia ${t + 1}`,
+        clusterPosition: clusterPosition.clone(),
+        listPosition: listPosition.clone(),
+        pulseOffset: Math.random() * Math.PI * 2,
+        pulseSpeed: 1.1 + Math.random() * 0.9,
+        pulseAmount: 0.04 + Math.random() * 0.05,
+        driftAxis,
+        driftAmount: 0.015 + Math.random() * 0.035,
+        driftSpeed: 0.6 + Math.random() * 0.8,
+        driftOffset: Math.random() * Math.PI * 2
+      };
+
+      trackMeshes.push(sphere);
+      archiveGroup.add(sphere);
+    }
+  }
+
+  for (let r = 0; r < CONFIG.days; r++) {
+    const label = document.createElement("div");
+    label.className = "day-label";
+    label.textContent = `DAY ${r + 1}`;
+    label.style.opacity = "0";
+    labelLayer?.appendChild(label);
+
+    const firstIndex = r * CONFIG.tracksPerDay;
+    const firstSphere = trackMeshes[firstIndex];
+
+    dayLabels.push({
+      el: label,
+      anchor: new THREE.Vector3(0, firstSphere.userData.listPosition.y + labelGap, 0)
     });
-
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    const distance = (t + 1) * CONFIG.slotDistance;
-
-    const wobble = new THREE.Vector3(
-      (Math.random() - 0.5) * CONFIG.wobbleAmount,
-      (Math.random() - 0.5) * CONFIG.wobbleAmount,
-      (Math.random() - 0.5) * CONFIG.wobbleAmount
-    );
-
-    sphere.position.copy(
-      dir.clone().multiplyScalar(distance).add(wobble)
-    );
-
-    sphere.userData = {
-      ray: r,
-      slot: t,
-      title: `Stella ${String(t + 1).padStart(2, "0")}:00`,
-      meta: `Giorno ${r + 1} · Fascia ${t + 1}`,
-      pulseOffset: Math.random() * Math.PI * 2
-    };
-
-    trackMeshes.push(sphere);
-    archiveGroup.add(sphere);
-  }
-}
-
-  // -------------------------------------------------
-  // 2D OVERLAY MAP
-  // -------------------------------------------------
-  function drawOverlay() {
-    if (!overlay) return;
-    const ctx = overlay.getContext("2d");
-    if (!ctx) return;
-
-    const w = (overlay.width = overlay.clientWidth * window.devicePixelRatio);
-    const h = (overlay.height = overlay.clientHeight * window.devicePixelRatio);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-    const vw = overlay.clientWidth;
-    const vh = overlay.clientHeight;
-    const cx = vw / 2;
-    const cy = vh / 2;
-    const maxRings = CONFIG.tracksPerDay;
-    const ringGap = Math.min(vw, vh) * 0.032;
-
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-
-    for (let i = 1; i <= maxRings; i++) {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, i * ringGap, i * ringGap * 0.76, -0.25, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    for (let r = 0; r < CONFIG.days; r++) {
-      const angle = (r / CONFIG.days) * Math.PI * 2 - Math.PI / 2;
-      const x = cx + Math.cos(angle) * maxRings * ringGap;
-      const y = cy + Math.sin(angle) * maxRings * ringGap * 0.76;
-
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = "rgba(255,255,255,0.10)";
-      ctx.stroke();
-    }
-
-    // linea orizzontale anche nell'overlay
-    const grd = ctx.createLinearGradient(0, cy, vw, cy);
-    grd.addColorStop(0, "rgba(255,255,255,0)");
-    grd.addColorStop(0.18, "rgba(255,255,255,0.16)");
-    grd.addColorStop(0.5, "rgba(255,255,255,0.38)");
-    grd.addColorStop(0.82, "rgba(255,255,255,0.16)");
-    grd.addColorStop(1, "rgba(255,255,255,0)");
-
-    ctx.strokeStyle = grd;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(vw * 0.12, cy);
-    ctx.lineTo(vw * 0.88, cy);
-    ctx.stroke();
   }
 
-  // -------------------------------------------------
-  // SHEET
-  // -------------------------------------------------
   function openSheet(data) {
     if (!sheet || !titleEl || !metaEl) return;
     titleEl.textContent = data.title;
@@ -369,27 +356,25 @@ for (let r = 0; r < CONFIG.days; r++) {
     sheet.setAttribute("aria-hidden", "false");
   }
 
-function closeSheet(event) {
-  event?.stopPropagation();
-  event?.preventDefault();
+  function closeSheet(event) {
+    event?.stopPropagation();
+    event?.preventDefault();
 
-  if (!sheet) return;
-  sheet.classList.remove("is-open");
-  sheet.setAttribute("aria-hidden", "true");
-  selectedSphere = null;
-  hoveredSphere = null;
-}
+    if (!sheet) return;
+    sheet.classList.remove("is-open");
+    sheet.setAttribute("aria-hidden", "true");
+    selectedSphere = null;
+    hoveredSphere = null;
+  }
 
-closeSheetBtn?.addEventListener("click", closeSheet);
-closeSheetBtn?.addEventListener("pointerdown", (event) => {
-  event.stopPropagation();
-});
-sheet?.addEventListener("pointerdown", (event) => {
-  event.stopPropagation();
-});
   closeSheetBtn?.addEventListener("click", closeSheet);
+  closeSheetBtn?.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
 
-  
+  sheet?.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
 
   fakePlayBtn?.addEventListener("click", () => {
     fakePlayBtn.textContent = fakePlayBtn.textContent === "Play" ? "Pause" : "Play";
@@ -483,66 +468,146 @@ sheet?.addEventListener("pointerdown", (event) => {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     bgMaterial.uniforms.resolution.value.set(w, h);
-    drawOverlay();
   }
 
-  window.addEventListener("resize", onResize);
+  resizeHandler = onResize;
+  window.addEventListener("resize", resizeHandler);
 
   function animate() {
-    requestAnimationFrame(animate);
+    animationId = requestAnimationFrame(animate);
 
     time += 0.005;
+    layoutLerp += (layoutTarget - layoutLerp) * 0.06;
     cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
 
-    camera.position.x = Math.cos(time * 0.35) * cameraRadius;
-    camera.position.z = Math.sin(time * 0.35) * cameraRadius;
-    camera.position.y = 4.5 + Math.sin(time * 0.2) * 1.25;
+    const clusterCamX = Math.cos(time * 0.35) * cameraRadius;
+    const clusterCamZ = Math.sin(time * 0.35) * cameraRadius;
+    const clusterCamY = 4.5 + Math.sin(time * 0.2) * 1.25;
+
+    const listCamX = 0;
+    const listCamY = 0;
+    const listCamZ = 24;
+
+    camera.position.x = THREE.MathUtils.lerp(clusterCamX, listCamX, layoutLerp);
+    camera.position.y = THREE.MathUtils.lerp(clusterCamY, listCamY, layoutLerp);
+    camera.position.z = THREE.MathUtils.lerp(clusterCamZ, listCamZ, layoutLerp);
     camera.lookAt(0, 0, 0);
 
-    archiveGroup.rotation.z = Math.sin(time * 0.4) * 0.03;
-    archiveGroup.rotation.y = Math.sin(time * 0.25) * 0.08;
+    archiveGroup.rotation.x = Math.sin(time * 0.22) * 0.12 * (1 - layoutLerp);
+    archiveGroup.rotation.y = Math.sin(time * 0.25) * 0.14 * (1 - layoutLerp);
+    archiveGroup.rotation.z = Math.sin(time * 0.18) * 0.05 * (1 - layoutLerp);
 
-    // micro respiro del bg
     bgSphere.rotation.y += 0.00035;
 
+    const pulse = (Math.sin(time * 1.6) + 1) * 0.5;
+    core.scale.setScalar(1 + pulse * 0.1);
+    core.material.emissiveIntensity = 1.45 + pulse * 0.55;
 
-    const corePulse = 1 + Math.sin(time * 2.2) * 0.045;
-    core.scale.setScalar(corePulse);
-    halo.material.opacity = 0.52 + Math.sin(time * 2.2) * 0.09;
-    halo.scale.setScalar(6.6 + Math.sin(time * 2.0) * 0.28);
+    halo.material.opacity = 0.52 + pulse * 0.2;
+    halo.scale.setScalar(9.5 + pulse * 1.2);
 
-    logoSprite.material.opacity = 0.9 + Math.sin(time * 1.7) * 0.05;
+    haloOuter.material.opacity = 0.16 + pulse * 0.12;
+    haloOuter.scale.setScalar(16.5 + pulse * 2.2);
+
+    logoSprite.material.opacity = 0.9 + Math.sin(time * 1.2) * 0.03;
+
+    for (const line of rayLines) {
+      line.material.opacity = 0.18 * (1 - layoutLerp);
+    }
 
     for (const sphere of trackMeshes) {
-      const basePulse = 1 + Math.sin(time * 2 + sphere.userData.pulseOffset) * 0.08;
+      const {
+        clusterPosition,
+        listPosition,
+        pulseOffset,
+        pulseSpeed,
+        pulseAmount,
+        driftAxis,
+        driftAmount,
+        driftSpeed,
+        driftOffset
+      } = sphere.userData;
 
-      let targetScale = basePulse;
-      let emissive = 0.32;
+      const pulseLocal = Math.sin(time * pulseSpeed + pulseOffset) * pulseAmount;
+      const drift = Math.sin(time * driftSpeed + driftOffset) * driftAmount;
+
+      const targetPosition = new THREE.Vector3().lerpVectors(
+        clusterPosition,
+        listPosition,
+        layoutLerp
+      );
+
+      const driftVector = driftAxis.clone().multiplyScalar(
+        drift * (1.0 - layoutLerp * 0.75)
+      );
+
+      sphere.position.copy(targetPosition.clone().add(driftVector));
+
+      let targetScale = 1 + pulseLocal;
+      let emissive = 0.20 + pulseLocal * 0.6;
 
       if (sphere === hoveredSphere) {
-        targetScale = basePulse + 0.22;
-        emissive = 0.9;
+        targetScale += 0.20;
+        emissive = 0.85;
       }
 
       if (sphere === selectedSphere) {
-        targetScale = basePulse + 0.32;
-        emissive = 1.25;
+        targetScale += 0.30;
+        emissive = 1.15;
       }
 
       sphere.scale.setScalar(targetScale);
       sphere.material.emissiveIntensity = emissive;
     }
 
+    for (const labelData of dayLabels) {
+      const { el, anchor } = labelData;
+      const projected = anchor.clone().project(camera);
+
+      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+      const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5))}`;
+    }
+
     renderer.render(scene, camera);
   }
 
-  drawOverlay();
   animate();
 }
 
-// -------------------------------------------------
-// helper glow texture
-// -------------------------------------------------
+export function setArchiveLayout(mode) {
+  layoutMode = mode;
+  layoutTarget = mode === "list" ? 1 : 0;
+}
+
+export function destroyArchiveCluster() {
+  if (animationId) cancelAnimationFrame(animationId);
+  animationId = null;
+
+  if (resizeHandler) {
+    window.removeEventListener("resize", resizeHandler);
+    resizeHandler = null;
+  }
+
+  if (rendererInstance) {
+    rendererInstance.dispose();
+    rendererInstance.domElement.remove();
+    rendererInstance = null;
+  }
+
+  const container = document.getElementById("archive");
+  if (container) container.innerHTML = "";
+
+  const labelLayer = document.getElementById("labelLayer");
+  if (labelLayer) labelLayer.innerHTML = "";
+
+  rayLines.length = 0;
+  dayLabels.length = 0;
+}
+
 function createGlowTexture() {
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -570,4 +635,3 @@ function createGlowTexture() {
   texture.needsUpdate = true;
   return texture;
 }
-
