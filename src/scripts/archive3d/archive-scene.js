@@ -12,6 +12,10 @@ const rayLines = [];
 const dayLabels = [];
 const orbitLines = [];
 
+let touchStartX = 0;
+let touchStartY = 0;
+let touchMoved = false;
+
 export async function initArchiveCluster() {
   const container = document.getElementById("archive");
   if (!container) return;
@@ -559,8 +563,6 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
     });
 
     renderer.domElement.addEventListener("click", (event) => {
-      if (layoutMode === "list") return;
-
       const hit = pickSphere(event.clientX, event.clientY);
       if (!hit) return;
       selectedSphere = hit;
@@ -580,6 +582,10 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
         if (event.touches.length === 1) {
           const touch = event.touches[0];
 
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+          touchMoved = false;
+
           if (layoutMode === "list") {
             isListDragging = true;
             lastTouchY = touch.clientY;
@@ -596,42 +602,59 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
     );
 
     renderer.domElement.addEventListener(
-      "touchmove",
-      (event) => {
-        if (layoutMode === "list" && event.touches.length === 1 && isListDragging) {
-          const touch = event.touches[0];
-          const deltaY = touch.clientY - lastTouchY;
-          lastTouchY = touch.clientY;
+  "touchmove",
+  (event) => {
+    if (layoutMode === "list" && event.touches.length === 1 && isListDragging) {
+      const touch = event.touches[0];
+      const deltaY = touch.clientY - lastTouchY;
 
-          targetListScrollY += deltaY * 0.03;
-          targetListScrollY = THREE.MathUtils.clamp(
-            targetListScrollY,
-            -maxListScroll,
-            maxListScroll
-          );
-          return;
-        }
+      if (
+        Math.abs(touch.clientY - touchStartY) > 8 ||
+        Math.abs(touch.clientX - touchStartX) > 8
+      ) {
+        touchMoved = true;
+      }
 
-        if (event.touches.length !== 2) return;
+      lastTouchY = touch.clientY;
 
-        const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
-        const delta = currentDistance - pinchStartDistance;
-        const zoomFactor = 0.03;
+      targetListScrollY -= deltaY * 0.03;
+      targetListScrollY = THREE.MathUtils.clamp(
+        targetListScrollY,
+        -maxListScroll,
+        maxListScroll
+      );
+      return;
+    }
 
-        targetCameraRadius = pinchStartRadius - delta * zoomFactor;
-        targetCameraRadius = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, targetCameraRadius));
-      },
-      { passive: true }
-    );
+    if (event.touches.length !== 2) return;
+
+    const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    const delta = currentDistance - pinchStartDistance;
+    const zoomFactor = 0.03;
+
+    targetCameraRadius = pinchStartRadius - delta * zoomFactor;
+    targetCameraRadius = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, targetCameraRadius));
+  },
+  { passive: true }
+);
 
     renderer.domElement.addEventListener(
-      "touchend",
-      () => {
-        pinchStartDistance = 0;
-        isListDragging = false;
-      },
-      { passive: true }
-    );
+  "touchend",
+  (event) => {
+    if (layoutMode === "list" && !touchMoved) {
+      const touch = event.changedTouches[0];
+      const hit = pickSphere(touch.clientX, touch.clientY);
+      if (hit) {
+        selectedSphere = hit;
+        openSheet(hit.userData);
+      }
+    }
+
+    pinchStartDistance = 0;
+    isListDragging = false;
+  },
+  { passive: true }
+);
 
     renderer.domElement.addEventListener(
       "wheel",

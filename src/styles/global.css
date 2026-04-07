@@ -310,3 +310,8 @@ body {
     transform: scale(1.06) translate3d(-1.5%, 1%, 0);
   }
 } */
+
+
+#archive canvas {
+  touch-action: none;
+}
