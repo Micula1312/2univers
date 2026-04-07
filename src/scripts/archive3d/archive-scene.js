@@ -698,7 +698,7 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 
     const listCamX = 0;
     const listCamY = 0;
-    const listCamZ = 24;
+    const listCamZ = cameraRadius;
 
     camera.position.x = THREE.MathUtils.lerp(clusterCamX, listCamX, layoutLerp);
     camera.position.y = THREE.MathUtils.lerp(clusterCamY, listCamY, layoutLerp);
