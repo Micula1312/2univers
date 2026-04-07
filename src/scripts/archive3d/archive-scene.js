@@ -10,6 +10,7 @@ let layoutLerp = 0;
 
 const rayLines = [];
 const dayLabels = [];
+const orbitLines = [];
 
 export async function initArchiveCluster() {
   const container = document.getElementById("archive");
@@ -86,7 +87,7 @@ export async function initArchiveCluster() {
     container.appendChild(frame);
   }
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
   scene.add(ambientLight);
 
   const pointLight = new THREE.PointLight(0xffffff, 2.4, 200);
@@ -109,8 +110,8 @@ export async function initArchiveCluster() {
       leftColorB: { value: new THREE.Color("#c8b08f") },
       leftColorC: { value: new THREE.Color("#d8c4a6") },
 
-      rightColorA: { value: new THREE.Color("#2a3446") },
-      rightColorB: { value: new THREE.Color("#42536f") },
+      rightColorA: { value: new THREE.Color("#3c5571") },
+      rightColorB: { value: new THREE.Color("#426384") },
       rightColorC: { value: new THREE.Color("#6d7f9f") },
 
       resolution: { value: new THREE.Vector2(width, height) }
@@ -141,10 +142,10 @@ void main() {
   vec2 uv = gl_FragCoord.xy / resolution.xy;
 
   // posizione della linea
-  float horizon = 1.01;
+  float horizon = 1.00000000000001;
 
   // morbidezza della transizione principale
-  float split = smoothstep(horizon + 0.03, horizon - 0.03, uv.y);
+  float split = smoothstep(horizon + 0.01, horizon - 0.01, uv.y);
 
   vec3 topGrad = mix(leftColorA, leftColorB, smoothstep(0.0, 0.30, uv.y));
   topGrad = mix(topGrad, leftColorC, smoothstep(0.28, 0.48, uv.y));
@@ -178,38 +179,46 @@ void main() {
   scene.add(bgSphere);
 
   const coreGeometry = new THREE.SphereGeometry(1.15, 48, 48);
-  const coreMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0xffffff,
-    emissiveIntensity: 1.7,
-    metalness: 0.02,
-    roughness: 0.18
-  });
+  
+  const textureLoader = new THREE.TextureLoader();
+    const coreMap = textureLoader.load("/images/core-texture.png");
+    coreMap.colorSpace = THREE.SRGBColorSpace;
+
+    const coreMaterial = new THREE.MeshPhysicalMaterial({
+      map: coreMap,
+      color: 0xc29a61,
+      emissive: 0x3a2915,
+      emissiveIntensity: 0.14,
+      metalness: 0.08,
+      roughness: 0.92,
+      clearcoat: 0.02,
+      clearcoatRoughness: 1
+    });
   const core = new THREE.Mesh(coreGeometry, coreMaterial);
   scene.add(core);
 
   const haloMaterial = new THREE.SpriteMaterial({
     map: createGlowTexture(),
-    color: 0xffffff,
+    color: 0xf5e7c8,
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.14,
     depthWrite: false,
     blending: THREE.AdditiveBlending
   });
   const halo = new THREE.Sprite(haloMaterial);
-  halo.scale.set(7, 7, 1);
+  halo.scale.set(5.6, 5.6, 1);
   scene.add(halo);
 
   const haloOuterMaterial = new THREE.SpriteMaterial({
     map: createGlowTexture(),
-    color: 0xffffff,
+    color: 0xf2e2c5,
     transparent: true,
-    opacity: 0.28,
+    opacity: 0.045,
     depthWrite: false,
     blending: THREE.AdditiveBlending
   });
   const haloOuter = new THREE.Sprite(haloOuterMaterial);
-  haloOuter.scale.set(18, 18, 1);
+  haloOuter.scale.set(10.5, 10.5, 1);
   scene.add(haloOuter);
 
 
@@ -223,8 +232,16 @@ void main() {
   const archiveGroup = new THREE.Group();
   scene.add(archiveGroup);
 
-  const sphereGeometry = new THREE.SphereGeometry(0.38, 24, 24);
+  const sphereGeometry = new THREE.SphereGeometry(0.25, 24, 24);
+  const sphereGlowTexture = createGlowTexture();
+
   const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0xe7e0d2,
+    transparent: true,
+    opacity: 0.18
+  });
+
+  const orbitMaterial = new THREE.LineBasicMaterial({
     color: 0xe7e0d2,
     transparent: true,
     opacity: 0.18
@@ -258,10 +275,46 @@ void main() {
 
   const listTopY = totalListHeight / 2;
 
+  async function loadArchiveData() {
+    try {
+      const res = await fetch("/data/archive.json");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      archiveData = Array.isArray(json?.tracks) ? json.tracks : [];
+    } catch (err) {
+      console.error("Errore caricamento archive.json:", err);
+      archiveData = [];
+    }
+  }
+  await loadArchiveData();
+
   function getTouchDistance(t1, t2) {
     const dx = t2.clientX - t1.clientX;
     const dy = t2.clientY - t1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+for (let t = 0; t < CONFIG.tracksPerDay; t++) {
+    const radius = (t + 1) * CONFIG.slotDistance;
+    const segments = 128;
+    const points = [];
+
+    for (let i = 0; i <= segments; i++) {
+      const angle = (i / segments) * Math.PI * 2;
+      points.push(
+        new THREE.Vector3(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius,
+          0
+        )
+      );
+    }
+
+    const orbitGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    const orbit = new THREE.LineLoop(orbitGeometry, orbitMaterial.clone());
+
+    scene.add(orbit);
+    orbitLines.push(orbit);
   }
 
   for (let r = 0; r < CONFIG.days; r++) {
@@ -284,29 +337,31 @@ void main() {
 
     for (let t = 0; t < CONFIG.tracksPerDay; t++) {
       const sphereMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xf5f1ea,
-        emissive: 0x7387b8,
-        emissiveIntensity: 0.18,
-        metalness: 0.02,
-        roughness: 0.22,
-        clearcoat: 0.6,
-        clearcoatRoughness: 0.18
-      });
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.015,
+      metalness: 0.0,
+      roughness: 0.82,
+      clearcoat: 0.04,
+      clearcoatRoughness: 0.8,
+      reflectivity: 0.08
+    });
 
-      async function loadArchiveData() {
-        try {
-          const res = await fetch("/data/archive.json");
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          archiveData = Array.isArray(json?.tracks) ? json.tracks : [];
-        } catch (err) {
-          console.error("Errore caricamento archive.json:", err);
-          archiveData = [];
-        }
-      }
-      await loadArchiveData();
 
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+      const sphereGlowMaterial = new THREE.SpriteMaterial({
+        map: sphereGlowTexture,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.09,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+
+      const sphereGlow = new THREE.Sprite(sphereGlowMaterial);
+      sphereGlow.scale.set(1.5, 1.5, 1);
+      sphere.add(sphereGlow);
       const distance = (t + 1) * CONFIG.slotDistance;
 
       const wobble = new THREE.Vector3(
@@ -550,9 +605,9 @@ void main() {
     layoutLerp += (layoutTarget - layoutLerp) * 0.06;
     cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
 
-    const clusterCamX = Math.cos(time * 0.35) * cameraRadius;
-    const clusterCamZ = Math.sin(time * 0.35) * cameraRadius;
-    const clusterCamY = 4.5 + Math.sin(time * 0.2) * 1.25;
+    const clusterCamX = 0;
+    const clusterCamZ = cameraRadius;
+    const clusterCamY = Math.sin(time * 0.2) * 0.4;
 
     const listCamX = 0;
     const listCamY = 0;
@@ -570,18 +625,22 @@ void main() {
     bgSphere.rotation.y += 0.00035;
 
     const pulse = (Math.sin(time * 1.6) + 1) * 0.5;
-    core.scale.setScalar(1 + pulse * 0.1);
-    core.material.emissiveIntensity = 1.45 + pulse * 0.55;
+    core.scale.setScalar(1 + pulse * 0.04);
+    core.material.emissiveIntensity = 0.04 + pulse * 0.02;
 
-    halo.material.opacity = 0.52 + pulse * 0.2;
-    halo.scale.setScalar(9.5 + pulse * 1.2);
+    halo.material.opacity = 0.07 + pulse * 0.03;
+    halo.scale.setScalar(4.8 + pulse * 0.35);
 
-    haloOuter.material.opacity = 0.16 + pulse * 0.12;
-    haloOuter.scale.setScalar(16.5 + pulse * 2.2);
+    haloOuter.material.opacity = 0.02 + pulse * 0.015;
+    haloOuter.scale.setScalar(9 + pulse * 0.45);
 
     for (const line of rayLines) {
-      line.material.opacity = 0.18 * (1 - layoutLerp);
+      line.material.opacity = 0.3 * (1 - layoutLerp);
     }
+
+    // for (const orbit of orbitLines) {
+    //   orbit.material.opacity = 0.3 * (1 - layoutLerp);
+    // }
 
     for (const sphere of trackMeshes) {
       const {
@@ -626,6 +685,25 @@ void main() {
 
       sphere.scale.setScalar(targetScale);
       sphere.material.emissiveIntensity = emissive;
+
+      const glow = sphere.children[0];
+      if (glow) {
+        let glowScale = 1.1 + pulseLocal * 0.28;
+        let glowOpacity = 0.04 + pulseLocal * 0.05;
+
+        if (sphere === hoveredSphere) {
+          glowScale += 0.10;
+          glowOpacity = 0.09;
+        }
+
+        if (sphere === selectedSphere) {
+          glowScale += 0.16;
+          glowOpacity = 0.13;
+        }
+
+        glow.scale.set(glowScale, glowScale, 1);
+        glow.material.opacity = glowOpacity;
+      }
     }
 
     for (const labelData of dayLabels) {
@@ -674,6 +752,7 @@ export function destroyArchiveCluster() {
 
   rayLines.length = 0;
   dayLabels.length = 0;
+  orbitLines.length = 0;
 }
 
 function createGlowTexture() {

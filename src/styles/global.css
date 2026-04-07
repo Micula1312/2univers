@@ -295,8 +295,8 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
 
-  opacity: 0.52;
-  mix-blend-mode:hard-light;
+  opacity: 0.34;
+  mix-blend-mode:normal;
 }
 /* .bg-texture-overlay {
   animation: bgTextureDrift 18s ease-in-out infinite alternate;
