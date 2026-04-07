@@ -142,10 +142,10 @@ void main() {
   vec2 uv = gl_FragCoord.xy / resolution.xy;
 
   // posizione della linea
-  float horizon = 1.00000000000001;
+  float horizon = 0.939;
 
   // morbidezza della transizione principale
-  float split = smoothstep(horizon + 0.01, horizon - 0.01, uv.y);
+  float split = smoothstep(horizon + 0.03, horizon - 0.03, uv.y);
 
   vec3 topGrad = mix(leftColorA, leftColorB, smoothstep(0.0, 0.30, uv.y));
   topGrad = mix(topGrad, leftColorC, smoothstep(0.28, 0.48, uv.y));
@@ -223,8 +223,8 @@ void main() {
 
 
   const CONFIG = {
-    days: 7,
-    tracksPerDay: 12,
+    days: 8,
+    tracksPerDay: 10,
     slotDistance: 1.55,
     wobbleAmount: 0.12
   };
@@ -258,6 +258,12 @@ void main() {
   let cameraRadius = 20;
   let targetCameraRadius = 20;
 
+  let listScrollY = 0;
+  let targetListScrollY = 0;
+
+  let isListDragging = false;
+  let lastTouchY = 0;
+
   let pinchStartDistance = 0;
   let pinchStartRadius = 20;
 
@@ -265,15 +271,21 @@ void main() {
   const CAMERA_MAX = 32;
   const CAMERA_DEFAULT = 20;
 
-  const dayGap = 2.6;
+  const dayGap = 2.2;
   const itemGap = 0.72;
   const labelGap = 1.0;
 
-  const totalListHeight =
-    CONFIG.days * CONFIG.tracksPerDay * itemGap +
-    (CONFIG.days - 1) * (dayGap - itemGap);
+  const daysPerColumn = 4;
+  const columnGap = 6.5;
 
-  const listTopY = totalListHeight / 2;
+  const columnHeight =
+    daysPerColumn * CONFIG.tracksPerDay * itemGap +
+    (daysPerColumn - 1) * (dayGap - itemGap);
+
+  const listTopY = columnHeight / 2;
+
+  const visibleListHeight = 18;
+  const maxListScroll = Math.max(0, (columnHeight - visibleListHeight) / 2);
 
   async function loadArchiveData() {
     try {
@@ -373,12 +385,17 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
       sphere.position.copy(dir.clone().multiplyScalar(distance).add(wobble));
       const clusterPosition = sphere.position.clone();
 
-      const listIndexBeforeDay = r * CONFIG.tracksPerDay;
-      const extraOffset = r * (dayGap - itemGap);
+      const columnIndex = r < daysPerColumn ? 0 : 1;
+      const rowInColumn = r % daysPerColumn;
+
+      const listIndexBeforeDay = rowInColumn * CONFIG.tracksPerDay;
+      const extraOffset = rowInColumn * (dayGap - itemGap);
       const absoluteIndex = listIndexBeforeDay + t;
 
       const listY = listTopY - (absoluteIndex * itemGap + extraOffset);
-      const listPosition = new THREE.Vector3(0, listY, 0);
+      const listX = columnIndex === 0 ? -columnGap / 2 : columnGap / 2;
+
+      const listPosition = new THREE.Vector3(listX, listY, 0);
 
       const driftAxis = new THREE.Vector3(
         Math.random() - 0.5,
@@ -428,7 +445,11 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 
     dayLabels.push({
       el: label,
-      anchor: new THREE.Vector3(0, firstSphere.userData.listPosition.y + labelGap, 0)
+      anchor: new THREE.Vector3(
+      firstSphere.userData.listPosition.x,
+      firstSphere.userData.listPosition.y + labelGap,
+      0
+    )
     });
   }
 
@@ -515,6 +536,7 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 
   resetViewBtn?.addEventListener("click", () => {
     targetCameraRadius = CAMERA_DEFAULT;
+    targetListScrollY = 0;
   });
 
   function setPointerFromEvent(clientX, clientY) {
@@ -531,60 +553,101 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
   }
 
   renderer.domElement.addEventListener("pointermove", (event) => {
-    const hit = pickSphere(event.clientX, event.clientY);
-    hoveredSphere = hit || null;
-    renderer.domElement.style.cursor = hit ? "pointer" : "default";
-  });
+      const hit = pickSphere(event.clientX, event.clientY);
+      hoveredSphere = hit || null;
+      renderer.domElement.style.cursor = hit ? "pointer" : "default";
+    });
 
-  renderer.domElement.addEventListener("click", (event) => {
-    const hit = pickSphere(event.clientX, event.clientY);
-    if (!hit) return;
-    selectedSphere = hit;
-    openSheet(hit.userData);
-  });
+    renderer.domElement.addEventListener("click", (event) => {
+      if (layoutMode === "list") return;
 
-  renderer.domElement.addEventListener(
-    "touchstart",
-    (event) => {
-      if (event.touches.length === 2) {
-        pinchStartDistance = getTouchDistance(event.touches[0], event.touches[1]);
-        pinchStartRadius = targetCameraRadius;
-        return;
-      }
+      const hit = pickSphere(event.clientX, event.clientY);
+      if (!hit) return;
+      selectedSphere = hit;
+      openSheet(hit.userData);
+    });
 
-      if (event.touches.length === 1) {
-        const touch = event.touches[0];
-        const hit = pickSphere(touch.clientX, touch.clientY);
-        if (!hit) return;
-        selectedSphere = hit;
-        openSheet(hit.userData);
-      }
-    },
-    { passive: true }
-  );
+    renderer.domElement.addEventListener(
+      "touchstart",
+      (event) => {
+        if (event.touches.length === 2) {
+          isListDragging = false;
+          pinchStartDistance = getTouchDistance(event.touches[0], event.touches[1]);
+          pinchStartRadius = targetCameraRadius;
+          return;
+        }
 
-  renderer.domElement.addEventListener(
-    "touchmove",
-    (event) => {
-      if (event.touches.length !== 2) return;
+        if (event.touches.length === 1) {
+          const touch = event.touches[0];
 
-      const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
-      const delta = currentDistance - pinchStartDistance;
-      const zoomFactor = 0.03;
+          if (layoutMode === "list") {
+            isListDragging = true;
+            lastTouchY = touch.clientY;
+            return;
+          }
 
-      targetCameraRadius = pinchStartRadius - delta * zoomFactor;
-      targetCameraRadius = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, targetCameraRadius));
-    },
-    { passive: true }
-  );
+          const hit = pickSphere(touch.clientX, touch.clientY);
+          if (!hit) return;
+          selectedSphere = hit;
+          openSheet(hit.userData);
+        }
+      },
+      { passive: true }
+    );
 
-  renderer.domElement.addEventListener(
-    "touchend",
-    () => {
-      pinchStartDistance = 0;
-    },
-    { passive: true }
-  );
+    renderer.domElement.addEventListener(
+      "touchmove",
+      (event) => {
+        if (layoutMode === "list" && event.touches.length === 1 && isListDragging) {
+          const touch = event.touches[0];
+          const deltaY = touch.clientY - lastTouchY;
+          lastTouchY = touch.clientY;
+
+          targetListScrollY += deltaY * 0.03;
+          targetListScrollY = THREE.MathUtils.clamp(
+            targetListScrollY,
+            -maxListScroll,
+            maxListScroll
+          );
+          return;
+        }
+
+        if (event.touches.length !== 2) return;
+
+        const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+        const delta = currentDistance - pinchStartDistance;
+        const zoomFactor = 0.03;
+
+        targetCameraRadius = pinchStartRadius - delta * zoomFactor;
+        targetCameraRadius = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, targetCameraRadius));
+      },
+      { passive: true }
+    );
+
+    renderer.domElement.addEventListener(
+      "touchend",
+      () => {
+        pinchStartDistance = 0;
+        isListDragging = false;
+      },
+      { passive: true }
+    );
+
+    renderer.domElement.addEventListener(
+      "wheel",
+      (event) => {
+        if (layoutMode !== "list") return;
+
+        event.preventDefault();
+        targetListScrollY += event.deltaY * 0.01;
+        targetListScrollY = THREE.MathUtils.clamp(
+          targetListScrollY,
+          -maxListScroll,
+          maxListScroll
+        );
+      },
+      { passive: false }
+    );
 
   function onResize() {
     const w = container.clientWidth || window.innerWidth;
@@ -604,6 +667,7 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
     time += 0.005;
     layoutLerp += (layoutTarget - layoutLerp) * 0.06;
     cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
+    listScrollY += (targetListScrollY - listScrollY) * 0.12;
 
     const clusterCamX = 0;
     const clusterCamZ = cameraRadius;
@@ -658,9 +722,12 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
       const pulseLocal = Math.sin(time * pulseSpeed + pulseOffset) * pulseAmount;
       const drift = Math.sin(time * driftSpeed + driftOffset) * driftAmount;
 
+      const scrolledListPosition = listPosition.clone();
+      scrolledListPosition.y += listScrollY;
+
       const targetPosition = new THREE.Vector3().lerpVectors(
         clusterPosition,
-        listPosition,
+        scrolledListPosition,
         layoutLerp
       );
 
@@ -708,7 +775,10 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 
     for (const labelData of dayLabels) {
       const { el, anchor } = labelData;
-      const projected = anchor.clone().project(camera);
+      const anchorPos = anchor.clone();
+      anchorPos.y += listScrollY;
+
+      const projected = anchorPos.project(camera);
 
       const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
       const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
@@ -727,6 +797,10 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 export function setArchiveLayout(mode) {
   layoutMode = mode;
   layoutTarget = mode === "list" ? 1 : 0;
+
+  if (mode !== "list") {
+    targetListScrollY = 0;
+  }
 }
 
 export function destroyArchiveCluster() {
