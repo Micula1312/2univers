@@ -315,10 +315,10 @@ export async function initArchiveOrbitScene({
       }) || null;
 
       const sphereMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xf5f2eb,
+        color: 0xffffff,
         emissive: 0xffffff,
         emissiveIntensity: 0.05,
-        metalness: 0.68,
+        metalness: 0.8,
         roughness: 0.18,
         clearcoat: 1,
         clearcoatRoughness: 0.08,
