@@ -7,9 +7,6 @@ body {
   background: #000;
   color: white;
   font-family: Arial, sans-serif;
-}
-
-body {
   overflow: hidden;
 }
 
@@ -26,7 +23,15 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  touch-action: none;
 }
+
+#archive canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* CAMERA CONTROLS */
 
 .camera-controls {
   position: absolute;
@@ -59,6 +64,50 @@ body {
   border-radius: 999px;
   font-size: 14px;
 }
+
+/* VIEW CONTROLS */
+
+.view-controls {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: start;
+  z-index: 30;
+}
+
+.view-controls button {
+  appearance: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.view-controls button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: white;
+}
+
+.view-controls button.active {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.6);
+  color: white;
+}
+
+/* TRACK SHEET */
 
 .track-sheet {
   position: absolute;
@@ -95,6 +144,7 @@ body {
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
+  z-index: 9999;
 }
 
 .track-sheet__eyebrow {
@@ -143,6 +193,8 @@ body {
   }
 }
 
+/* FRAME + LOGHI FISSI */
+
 .keyvisual-frame {
   position: absolute;
   inset: 0;
@@ -170,39 +222,7 @@ body {
   bottom: 18px;
 }
 
-@media (max-width: 700px) {
-  .center-logo {
-    width: 30px;
-  }
-
-  .center-logo--top {
-    top: 12px;
-  }
-
-  .center-logo--bottom {
-    bottom: 12px;
-  }
-}
-
-@media (max-width: 700px) {
-  .camera-controls {
-    right: 12px;
-    top: 12px;
-    gap: 6px;
-  }
-
-  .camera-controls button {
-    width: 42px;
-    height: 42px;
-    font-size: 18px;
-  }
-
-  .camera-controls button:last-child {
-    height: 42px;
-    padding: 0 12px;
-    font-size: 13px;
-  }
-}
+/* LABELS */
 
 .label-layer {
   position: absolute;
@@ -224,94 +244,260 @@ body {
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
 }
 
-/* VIEW CONTROLS */
-
-.view-controls {
-
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: start;
-  z-index: 30;
-}
-
-/* usa lo stesso stile dei camera buttons */
-
-.view-controls button {
-  appearance: none;
-  border: 0;
-
-  font-family: inherit;
-  font-size: 12px;
-
-  padding: 8px 14px;
-
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  backdrop-filter: blur(10px);
-
-  cursor: pointer;
-
-  transition:
-    background .2s ease,
-    border-color .2s ease,
-    color .2s ease;
-}
-
-
-/* hover */
-
-.view-controls button:hover {
-
-  background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.4);
-
-  color: white;
-}
-
-/* stato attivo */
-
-.view-controls button.active {
-
-  background: rgba(255,255,255,.18);
-  border-color: rgba(255,255,255,.6);
-
-  color: white;
-}
-
+/* BACKGROUND OVERLAY */
 
 .bg-texture-overlay {
   position: absolute;
   inset: 0;
   z-index: 5;
   pointer-events: none;
-
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-
-  opacity: 0.34;
-  mix-blend-mode:normal;
-}
-/* .bg-texture-overlay {
-  animation: bgTextureDrift 18s ease-in-out infinite alternate;
+  opacity: 0.14;
+  mix-blend-mode: normal;
 }
 
-@keyframes bgTextureDrift {
+/* PRELOADER KV */
+
+.kv-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 1;
+  background: #000;
+}
+
+.kv-preloader.is-out {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.kv-preloader__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(198, 160, 107, 0.10) 0%,
+      rgba(198, 160, 107, 0.04) 48%,
+      rgba(39, 67, 114, 0.08) 52%,
+      rgba(39, 67, 114, 0.12) 100%
+    );
+}
+
+.kv-step {
+  position: absolute;
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(8px) scale(0.985);
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s ease,
+    filter 0.9s ease;
+}
+
+.kv-step.is-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0) scale(1);
+}
+
+.kv-logo {
+  display: block;
+  height: auto;
+}
+
+.kv-logo--top {
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110px;
+}
+
+.kv-title {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: min(94vw, 840px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.kv-title__line {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  display: block;
+  height: auto;
+}
+
+.kv-core-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 430px;
+  height: 430px;
+  transform: translate(-50%, -50%);
+}
+
+.kv-orbit {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.10);
+}
+
+.kv-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 108px;
+  height: 108px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 30%, #ead4a1 0%, #c89b57 30%, #7d4e1d 62%, #140d09 100%);
+  box-shadow:
+    0 0 24px rgba(255, 240, 220, 0.10),
+    0 0 56px rgba(255, 240, 220, 0.05);
+}
+
+.kv-core::after {
+  content: "";
+  position: absolute;
+  inset: -28px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,
+      rgba(255, 245, 225, 0.14) 0%,
+      rgba(255, 245, 225, 0.04) 38%,
+      rgba(255, 245, 225, 0) 70%);
+}
+
+.kv-satellite {
+  position: absolute;
+  left: 14%;
+  top: 70%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #ffffff 0%, #f5f2eb 58%, #cfc9bc 100%);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.18);
+}
+
+.kv-logo--bottom {
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+}
+
+.kv-side {
+  position: absolute;
+  right: 14px;
+  bottom: 82px;
+  width: 24px;
+  height: auto;
+}
+
+.kv-mark {
+  position: absolute;
+  right: 12px;
+  bottom: 18px;
+  width: 34px;
+  height: auto;
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+  .center-logo {
+    width: 30px;
+  }
+
+  .center-logo--top {
+    top: 12px;
+  }
+
+  .center-logo--bottom {
+    bottom: 12px;
+  }
+
+  .camera-controls {
+    right: 12px;
+    top: 12px;
+    gap: 6px;
+  }
+
+  .camera-controls button {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+
+  .camera-controls button:last-child {
+    height: 42px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .kv-logo--top {
+    width: 92px;
+    top: 12px;
+  }
+
+  .kv-core-wrap {
+    width: 310px;
+    height: 310px;
+  }
+
+  .kv-core {
+    width: 84px;
+    height: 84px;
+  }
+
+  .kv-satellite {
+    width: 22px;
+    height: 22px;
+  }
+
+  .kv-logo--bottom {
+    width: 120px;
+    bottom: 18px;
+  }
+
+  .kv-side {
+    width: 18px;
+    right: 8px;
+    bottom: 68px;
+  }
+
+  .kv-mark {
+    width: 28px;
+    right: 8px;
+    bottom: 14px;
+  }
+}
+
+
+.kv-satellite {
+  transform-origin: 185px -85px;
+  animation: kvOrbit 6s linear infinite;
+}
+
+@keyframes kvOrbit {
   0% {
-    transform: scale(1.02) translate3d(0, 0, 0);
+    transform: rotate(0deg);
   }
   100% {
-    transform: scale(1.06) translate3d(-1.5%, 1%, 0);
+    transform: rotate(360deg);
   }
-} */
-
-
-#archive canvas {
-  touch-action: none;
 }

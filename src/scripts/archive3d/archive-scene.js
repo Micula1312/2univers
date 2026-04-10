@@ -1,3 +1,4 @@
+import { initKeyVisualPreloader, hideKeyVisualPreloader } from "../ui/preloader.js";
 import * as THREE from "three";
 
 let animationId = null;
@@ -62,6 +63,8 @@ export async function initArchiveCluster() {
   container.innerHTML = "";
   container.appendChild(renderer.domElement);
 
+  initKeyVisualPreloader();
+
   const overlayImages = [
       "/images/bg-overlay-1.jpg",
       "/images/bg-overlay-2.jpg",
@@ -85,8 +88,8 @@ export async function initArchiveCluster() {
     frame = document.createElement("div");
     frame.className = "keyvisual-frame";
     frame.innerHTML = `
-      <img class="center-logo center-logo--top" src="/images/corner-logo-1.png" alt="">
-      <img class="center-logo center-logo--bottom" src="/images/corner-logo.png" alt="">
+      <img class="center-logo center-logo--top" src="/images/mhero-logo.png" alt="">
+      <img class="center-logo center-logo--bottom" src="/images/voyah-logo.png" alt="">
     `;
     container.appendChild(frame);
   }
@@ -813,6 +816,9 @@ for (let t = 0; t < CONFIG.tracksPerDay; t++) {
 
     renderer.render(scene, camera);
   }
+  setTimeout(() => {
+    hideKeyVisualPreloader();
+  }, 2400);
 
   animate();
 }
