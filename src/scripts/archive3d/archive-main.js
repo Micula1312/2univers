@@ -1,34 +1,63 @@
-import {
-  initArchiveCluster,
-  setArchiveLayout
-} from "./archive-scene.js";
+import { initArchiveOrbitScene } from "./archive-scene-orbit.js";
+import { initUI } from "../ui/ui.js";
+import { hidePreloader } from "../ui/preloader.js";
 
-export function initArchiveApp() {
-  const clusterBtn = document.getElementById("viewCluster");
-  const listBtn = document.getElementById("viewList");
+export async function initArchiveApp() {
+  const archiveContainer = document.getElementById("archive");
 
-  initArchiveCluster();
+  if (!archiveContainer) {
+    console.warn("Archive app: #archive non trovato");
+    return;
+  }
 
-  document.querySelectorAll(".view-controls button")
-    .forEach((b) => b.classList.remove("active"));
-
-  clusterBtn?.classList.add("active");
-
-  clusterBtn?.addEventListener("click", () => {
-    setArchiveLayout("cluster");
-
-    document.querySelectorAll(".view-controls button")
-      .forEach((b) => b.classList.remove("active"));
-
-    clusterBtn.classList.add("active");
+  const scene = await initArchiveOrbitScene({
+    container: archiveContainer,
+    dataUrl: "/data/archive.json"
   });
 
-  listBtn?.addEventListener("click", () => {
-    setArchiveLayout("list");
+  let ui = null;
 
-    document.querySelectorAll(".view-controls button")
-      .forEach((b) => b.classList.remove("active"));
+  ui = initUI({
+    assets: {
+      plus: "images/assets/btn-plus.png",
+      minus: "images/assets/btn-MINUS.png",
+      reset: "images/assets/btn-RESET.png",
+      archive: "images/assets/btn-ARCHIVE.png",
+      cosmic: "images/assets/btn-COSMIC.png"
+    },
 
-    listBtn.classList.add("active");
+    onZoomIn: () => {
+      scene.zoomIn();
+    },
+
+    onZoomOut: () => {
+      scene.zoomOut();
+    },
+
+    onReset: () => {
+      scene.resetView();
+      ui?.setMode("cosmic");
+    },
+
+    onArchiveMode: () => {
+      scene.setArchiveMode();
+      ui?.setMode("archive");
+    },
+
+    onCosmicMode: () => {
+      scene.setCosmicMode();
+      ui?.setMode("cosmic");
+    }
   });
+
+  ui?.setMode("cosmic");
+
+  window.setTimeout(() => {
+    hidePreloader();
+  }, 600);
+
+  return {
+    scene,
+    ui
+  };
 }

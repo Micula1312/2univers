@@ -10,26 +10,22 @@ import "../styles/global.css";
   </head>
 
   <body>
-    <div id="preloader">
-      <div class="core"></div>
-    </div>
-    <main id="app">
-      <!-- <div class="intro">
-        <h1>2Univers</h1>
-      </div> -->
+    <div id="preloader" class="kv-preloader">
+      <div class="kv-preloader__bg"></div>
 
-      <div class="camera-controls">
-        <button id="zoomIn" type="button">+</button>
-        <button id="zoomOut" type="button">−</button>
-        <button id="resetView" type="button">Reset</button>
+      <div class="kv-core-wrap">
+        <div class="kv-orbit"></div>
+        <div class="kv-core"></div>
+        <div class="kv-satellite"></div>
       </div>
+    </div>
 
- <div class="view-controls">
-  <button id="viewCluster" class="btn active">Cosmic</button>
-  <button id="viewList" class="btn">Archive</button>
-</div>
+    <main id="app">
+      <div class="camera-controls"></div>
 
-	  <div id="labelLayer" class="label-layer"></div>
+      <div class="view-controls"></div>
+
+      <div id="labelLayer" class="label-layer"></div>
       <div id="archive"></div>
 
       <div id="trackSheet" class="track-sheet" aria-hidden="true">

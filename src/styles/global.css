@@ -27,6 +27,8 @@ body {
 }
 
 #archive canvas {
+  position: relative;
+  z-index: 10;
   display: block;
   touch-action: none;
 }
@@ -37,33 +39,48 @@ body {
   position: absolute;
   right: 16px;
   top: 16px;
-  z-index: 25;
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   align-items: end;
+  pointer-events: none;
 }
 
 .camera-controls button {
   appearance: none;
   border: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  backdrop-filter: blur(10px);
-  font-size: 20px;
+  padding: 0;
+  margin: 0;
+  width: 54px;
+  height: 54px;
+  background: transparent;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
 }
 
-.camera-controls button:last-child {
-  width: auto;
-  height: 46px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font-size: 14px;
+.camera-controls button img {
+  display: block;
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
+
+.camera-controls button:hover {
+  opacity: 0.92;
+}
+
+.camera-controls button:active {
+  transform: scale(0.96);
+}
+
+/* VIEW CONTROLS */
 
 /* VIEW CONTROLS */
 
@@ -71,40 +88,54 @@ body {
   position: absolute;
   left: 16px;
   bottom: 16px;
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   align-items: start;
-  z-index: 30;
+  pointer-events: none;
 }
 
 .view-controls button {
   appearance: none;
   border: 0;
-  font-family: inherit;
-  font-size: 12px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
-  backdrop-filter: blur(10px);
+  padding: 0;
+  margin: 0;
+  width: 54px;
+  height: 54px;
+  background: transparent;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  opacity: 0.82;
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.view-controls button img {
+  display: block;
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .view-controls button:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: white;
+  opacity: 0.96;
+}
+
+.view-controls button:active {
+  transform: scale(0.96);
 }
 
 .view-controls button.active {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.6);
-  color: white;
+  opacity: 1;
+  transform: scale(1.04);
 }
 
 /* TRACK SHEET */
@@ -206,7 +237,7 @@ body {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 44px;
+  width: 200px;
   height: auto;
   opacity: 0.92;
   pointer-events: none;
@@ -249,13 +280,12 @@ body {
 .bg-texture-overlay {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 0;
   pointer-events: none;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  opacity: 0.14;
-  mix-blend-mode: normal;
+  opacity: 1;
 }
 
 /* PRELOADER KV */
@@ -420,7 +450,7 @@ body {
 
 @media (max-width: 700px) {
   .center-logo {
-    width: 30px;
+    width: 120px;
   }
 
   .center-logo--top {
@@ -434,19 +464,25 @@ body {
   .camera-controls {
     right: 12px;
     top: 12px;
-    gap: 6px;
+    gap: 8px;
   }
 
-  .camera-controls button {
-    width: 42px;
-    height: 42px;
-    font-size: 18px;
+  .view-controls {
+    left: 12px;
+    bottom: 12px;
+    gap: 8px;
   }
 
-  .camera-controls button:last-child {
-    height: 42px;
-    padding: 0 12px;
-    font-size: 13px;
+  .camera-controls button,
+  .view-controls button {
+    width: 46px;
+    height: 46px;
+  }
+
+  .camera-controls button img,
+  .view-controls button img {
+    width: 46px;
+    height: 46px;
   }
 
   .kv-logo--top {
@@ -501,3 +537,5 @@ body {
     transform: rotate(360deg);
   }
 }
+
+
