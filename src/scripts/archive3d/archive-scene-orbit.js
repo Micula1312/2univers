@@ -45,6 +45,10 @@ export async function initArchiveOrbitScene({
   const metaEl = document.getElementById("trackMeta");
   const fakePlayBtn = document.getElementById("fakePlay");
 
+  const progressEl = document.getElementById("trackProgress");
+  const shareBtn = document.getElementById("shareTrack");
+  const downloadBtn = document.getElementById("downloadTrack");
+
   let currentAudio = null;
   let currentTrackData = null;
 
@@ -314,32 +318,32 @@ export async function initArchiveOrbitScene({
           : false;
       }) || null;
 
-      const sphereMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        emissive: 0xffffff,
-        emissiveIntensity: 0.05,
-        metalness: 0.8,
-        roughness: 0.18,
-        clearcoat: 1,
-        clearcoatRoughness: 0.08,
-        reflectivity: 1,
-        transparent: true,
-        opacity: settings.sphereOpacity
-      });
+    const sphereMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xf8f4ea,
+      emissive: 0xfff4e6,
+      emissiveIntensity: 0.14,
+      metalness: 0.12,
+      roughness: 0.16,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06,
+      reflectivity: 1,
+      transparent: true,
+      opacity: settings.sphereOpacity
+    });
 
     const mesh = new THREE.Mesh(geometry, sphereMaterial);
 
     const sphereGlowMaterial = new THREE.SpriteMaterial({
       map: sphereGlowTexture,
-      color: 0xffffff,
+      color: 0xfff8ee,
       transparent: true,
-      opacity: 0.06,
+      opacity: 0.22,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     });
 
     const sphereGlow = new THREE.Sprite(sphereGlowMaterial);
-    sphereGlow.scale.set(1.25, 1.25, 1);
+    sphereGlow.scale.set(2.2, 2.2, 1);
     mesh.add(sphereGlow);
 
     const orbitPos = getOrbitPosition(dayIndex, slotIndex);
@@ -365,8 +369,9 @@ export async function initArchiveOrbitScene({
 
   function getOrbitPosition(dayIndex, slotIndex) {
     const radius = settings.innerRadius + dayIndex * settings.orbitGap;
+    const rotationOffset = 61; // circa 18°
     const angle =
-      (slotIndex / settings.slotsPerDay) * Math.PI * 2 - Math.PI / 2;
+      (slotIndex / settings.slotsPerDay) * Math.PI * 2 - Math.PI / 2 + rotationOffset;
 
     return new THREE.Vector3(
       Math.cos(angle) * radius,
@@ -397,6 +402,24 @@ export async function initArchiveOrbitScene({
     titleEl.textContent = data.title;
     metaEl.textContent = data.meta;
 
+    if (progressEl) {
+      progressEl.value = 0;
+    }
+
+    if (downloadBtn) {
+      if (currentTrackData?.audio) {
+        downloadBtn.href = currentTrackData.audio;
+        downloadBtn.setAttribute("download", "");
+        downloadBtn.style.pointerEvents = "auto";
+        downloadBtn.style.opacity = "1";
+      } else {
+        downloadBtn.href = "#";
+        downloadBtn.removeAttribute("download");
+        downloadBtn.style.pointerEvents = "none";
+        downloadBtn.style.opacity = "0.45";
+      }
+    }
+
     if (fakePlayBtn) {
       fakePlayBtn.disabled = !currentTrackData?.audio;
       fakePlayBtn.textContent =
@@ -425,6 +448,8 @@ export async function initArchiveOrbitScene({
     }
 
     if (fakePlayBtn) fakePlayBtn.textContent = "Play";
+    if (progressEl) progressEl.value = 0;
+    if (shareBtn) shareBtn.textContent = "Condividi";
   }
 
   function bindUI() {
@@ -451,8 +476,18 @@ export async function initArchiveOrbitScene({
         currentAudio = new Audio(currentTrackData.audio);
         currentAudio.preload = "auto";
 
+        currentAudio.addEventListener("timeupdate", () => {
+          if (!progressEl || !currentAudio?.duration) return;
+          progressEl.value = (currentAudio.currentTime / currentAudio.duration) * 100;
+        });
+
+        currentAudio.addEventListener("loadedmetadata", () => {
+          if (progressEl) progressEl.value = 0;
+        });
+
         currentAudio.addEventListener("ended", () => {
           if (fakePlayBtn) fakePlayBtn.textContent = "Play";
+          if (progressEl) progressEl.value = 0;
         });
       }
 
@@ -469,6 +504,56 @@ export async function initArchiveOrbitScene({
       }
     });
 
+
+
+    progressEl?.addEventListener("input", () => {
+      if (!currentAudio || !currentAudio.duration) return;
+      const nextTime = (Number(progressEl.value) / 100) * currentAudio.duration;
+      currentAudio.currentTime = nextTime;
+    });
+
+    shareBtn?.addEventListener("click", async () => {
+      if (!currentTrackData?.audio) return;
+
+      const shareUrl = new URL(currentTrackData.audio, window.location.origin).toString();
+      const shareTitle = titleEl?.textContent || "Audio track";
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: shareTitle,
+            text: metaEl?.textContent || "",
+            url: shareUrl
+          });
+        } else {
+          await navigator.clipboard.writeText(shareUrl);
+          shareBtn.textContent = "Link copiato";
+          window.setTimeout(() => {
+            shareBtn.textContent = "Condividi";
+          }, 1400);
+        }
+      } catch (error) {
+        console.error("Errore condivisione:", error);
+      }
+    });
+
+    let lastTapTime = 0;
+
+      renderer.domElement.addEventListener(
+        "touchend",
+        (event) => {
+          const now = Date.now();
+          const tapGap = now - lastTapTime;
+
+          if (tapGap > 0 && tapGap < 300) {
+            event.preventDefault();
+          }
+
+          lastTapTime = now;
+        },
+        { passive: false }
+      );
+
     renderer.domElement.addEventListener("pointermove", (event) => {
       const hit = pickSphere(event.clientX, event.clientY);
       hoveredSphere = hit || null;
@@ -478,6 +563,14 @@ export async function initArchiveOrbitScene({
     renderer.domElement.addEventListener("click", (event) => {
       const hit = pickSphere(event.clientX, event.clientY);
       if (!hit) return;
+
+      const isSheetOpen = sheet?.classList.contains("is-open");
+
+      if (isSheetOpen && selectedSphere === hit) {
+        closeSheet();
+        return;
+      }
+
       selectedSphere = hit;
       openSheet(hit.userData);
     });
@@ -507,6 +600,14 @@ export async function initArchiveOrbitScene({
 
           const hit = pickSphere(touch.clientX, touch.clientY);
           if (!hit) return;
+
+          const isSheetOpen = sheet?.classList.contains("is-open");
+
+          if (isSheetOpen && selectedSphere === hit) {
+            closeSheet();
+            return;
+          }
+
           selectedSphere = hit;
           openSheet(hit.userData);
         }
@@ -626,8 +727,8 @@ export async function initArchiveOrbitScene({
 
       sphere.position.lerpVectors(orbitPosition, listPosition, layoutLerp);
 
-      let targetScale = 1;
-      let emissive = 0.04;
+      let targetScale = 1.22;
+      let emissive = 0.7;
 
       if (sphere === hoveredSphere) {
         targetScale = 1.14;
@@ -635,7 +736,7 @@ export async function initArchiveOrbitScene({
       }
 
       if (sphere === selectedSphere) {
-        targetScale = 1.22;
+        targetScale = 1;
         emissive = 0.70;
       }
 
@@ -644,7 +745,7 @@ export async function initArchiveOrbitScene({
 
       const glow = sphere.children[0];
       if (glow) {
-        let glowOpacity = 0.06;
+        let glowOpacity = 0.08;
         let glowScale = 1.25;
 
         if (sphere === hoveredSphere) {
