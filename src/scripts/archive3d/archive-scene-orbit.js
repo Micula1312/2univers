@@ -764,7 +764,7 @@ async function refreshArchiveData() {
 
           lastTouchY = touch.clientY;
 
-          targetListScrollY += deltaY * 0.03;
+          targetListScrollY -= deltaY * 0.03;
 
           targetListScrollY = THREE.MathUtils.clamp(
             targetListScrollY,
