@@ -325,15 +325,12 @@ body {
     width: 100%;
   }
 
-  .track-sheet__actions {
-    flex-direction: column;
-  }
 
   .track-sheet__action {
     width: 100%;
   }
 
-    .track-sheet__actions {
+  .track-sheet__actions {
     gap: 14px;
   }
 
@@ -660,3 +657,60 @@ body {
 }
 
 
+.kv-preloader--images {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 999;
+}
+
+.kv-preloader__titles {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+
+  overflow: hidden;
+}
+
+
+.kv-title-left {
+  transform: translateX(-25vw);
+}
+
+.kv-title-right {
+  transform: translateX(25vw);
+}
+
+.kv-title-img.is-fade {
+  opacity: 0;
+}
+
+.kv-preloader--images.is-out {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.kv-title-img {
+  height: clamp(24px, 3vw, 56px);
+  opacity: 0;
+
+  filter: brightness(1) drop-shadow(0 0 0px rgba(255,255,255,0));
+
+  transition:
+    transform 1.2s cubic-bezier(.22,1,.36,1),
+    opacity 1.2s ease,
+    filter 1.2s ease;
+}
+
+.kv-title-img.is-visible {
+  transform: translateX(0);
+  opacity: 1;
+
+  filter:
+    brightness(1.05)
+    drop-shadow(0 0 8px rgba(255,255,255,0.15));
+}

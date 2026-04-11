@@ -1,6 +1,6 @@
 import { initArchiveOrbitScene } from "./archive-scene-orbit.js";
 import { initUI } from "../ui/ui.js";
-import { hidePreloader } from "../ui/preloader.js";
+import { showPreloader, hidePreloader } from "../ui/preloader.js";
 
 export async function initArchiveApp() {
   const archiveContainer = document.getElementById("archive");
@@ -9,6 +9,8 @@ export async function initArchiveApp() {
     console.warn("Archive app: #archive non trovato");
     return;
   }
+
+  showPreloader();
 
   const scene = await initArchiveOrbitScene({
     container: archiveContainer,
@@ -52,9 +54,9 @@ export async function initArchiveApp() {
 
   ui?.setMode("cosmic");
 
-  window.setTimeout(() => {
-    hidePreloader();
-  }, 600);
+window.setTimeout(() => {
+  hidePreloader();
+}, 1800);
 
   return {
     scene,

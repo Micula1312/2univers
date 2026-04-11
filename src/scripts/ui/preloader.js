@@ -1,16 +1,35 @@
 export function showPreloader() {
-  const preloader = document.querySelector(".kv-preloader");
+
+  const preloader = document.getElementById("preloader");
   if (!preloader) return;
-  preloader.classList.remove("is-out");
+
+  const left = preloader.querySelector(".kv-title-left");
+  const right = preloader.querySelector(".kv-title-right");
+
+  requestAnimationFrame(() => {
+    left?.classList.add("is-visible");
+    right?.classList.add("is-visible");
+  });
+
 }
 
 export function hidePreloader() {
-  const preloader = document.querySelector(".kv-preloader");
+
+  const preloader = document.getElementById("preloader");
   if (!preloader) return;
 
-  preloader.classList.add("is-out");
+  const left = preloader.querySelector(".kv-title-left");
+  const right = preloader.querySelector(".kv-title-right");
 
-  window.setTimeout(() => {
+  left?.classList.add("is-fade");
+  right?.classList.add("is-fade");
+
+  setTimeout(() => {
+    preloader.classList.add("is-out");
+  }, 400);
+
+  setTimeout(() => {
     preloader.remove();
-  }, 1200);
+  }, 1400);
+
 }
