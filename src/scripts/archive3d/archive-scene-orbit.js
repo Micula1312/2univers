@@ -1006,8 +1006,9 @@ function animate() {
   animationId = requestAnimationFrame(animate);
 
   time += 0.005;
-  updateLayout();
   updateCamera();
+  updateLayout();
+  
 
   renderer.render(scene, camera);
 }
