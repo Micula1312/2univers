@@ -28,8 +28,15 @@ body {
 #app {
   position: relative;
   width: 100vw;
-  height: 100vh;
+  height: var(--app-height, 100vh);
+  min-height: 100svh;
   background: #000;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  box-sizing: border-box;
 }
 
 #archive {
@@ -52,8 +59,8 @@ body {
 
 .camera-controls {
   position: absolute;
-  right: 16px;
-  top: 16px;
+  right: max(16px, env(safe-area-inset-right, 0));
+  top: max(16px, env(safe-area-inset-top, 0));
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -101,8 +108,8 @@ body {
 
 .view-controls {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: max(16px, env(safe-area-inset-left, 0));
+  bottom: max(16px, env(safe-area-inset-bottom, 0));
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -362,12 +369,12 @@ body {
 }
 
 .center-logo--top {
-  top: 18px;
+  top: max(18px, env(safe-area-inset-top, 0));
   height: 60px;
 }
 
 .center-logo--bottom {
-  bottom: 18px;
+  bottom: max(18px, env(safe-area-inset-bottom, 0));
 }
 
 /* LABELS */
