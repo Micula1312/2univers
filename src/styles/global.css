@@ -400,6 +400,18 @@ body {
     font-family: "pirulen", sans-serif;
 }
 
+.track-label {
+  position: absolute;
+  transform: translateY(-50%);
+  color: #f5efe4;
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
 /* BACKGROUND OVERLAY */
 
 .bg-texture-overlay {
@@ -574,6 +586,7 @@ body {
 /* MOBILE */
 
 @media (max-width: 700px) {
+
   .center-logo {
     width: 90px;
   }
@@ -645,6 +658,18 @@ body {
     width: 28px;
     right: 8px;
     bottom: 14px;
+  }
+
+  .track-label {
+    position: absolute;
+    transform: translateY(-50%);
+    color: #f5efe4;
+    font-size: 15px;
+    line-height: 1.1;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: 0.02em;
   }
 }
 

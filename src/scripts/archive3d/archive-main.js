@@ -4,13 +4,26 @@ import { showPreloader, hidePreloader } from "../ui/preloader.js";
 
 export async function initArchiveApp() {
   const archiveContainer = document.getElementById("archive");
-
+  const appRoot = document.getElementById("app");
   if (!archiveContainer) {
     console.warn("Archive app: #archive non trovato");
     return;
   }
 
   showPreloader();
+
+  const syncMobileViewport = () => {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
+    if (appRoot) {
+      appRoot.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
+    }
+  };
+
+  syncMobileViewport();
+  window.addEventListener("resize", syncMobileViewport, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncMobileViewport, { passive: true });
+  window.visualViewport?.addEventListener("scroll", syncMobileViewport, { passive: true });
 
   const scene = await initArchiveOrbitScene({
     container: archiveContainer,
@@ -60,6 +73,12 @@ window.setTimeout(() => {
 
   return {
     scene,
-    ui
+    ui,
+    destroy: () => {
+      window.removeEventListener("resize", syncMobileViewport);
+      window.visualViewport?.removeEventListener("resize", syncMobileViewport);
+      window.visualViewport?.removeEventListener("scroll", syncMobileViewport);
+      scene.destroy?.();
+    }
   };
 }

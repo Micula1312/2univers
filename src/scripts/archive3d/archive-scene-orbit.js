@@ -173,6 +173,8 @@ export async function initArchiveOrbitScene({
 
   const trackMeshes = [];
   const dayLabels = [];
+  const trackLabels = [];
+  const knownTrackKeys = new Set();
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -206,32 +208,44 @@ export async function initArchiveOrbitScene({
   const CAMERA_MAX = settings.zoomMax;
   const CAMERA_DEFAULT = settings.cosmicCameraZ;
 
-  const daysPerColumn = 4;
-  const columnGap = 6.5;
-  const itemGap = 0.78;
-  const dayGap = 2.5;
-  const labelGap = 1.0;
+ const listX = -2.8;
+  const itemGap = 1;
+  const dayGap = 2.2;
+  const labelGap = 0.9;
+  const listStartY = 5.8;
 
-  const columnHeight =
-    daysPerColumn * settings.slotsPerDay * itemGap +
-    (daysPerColumn - 1) * (dayGap - itemGap);
-
-  const listTopY = columnHeight / 2;
+  let columnHeight = 0;
+  let listTopY = 0;
   const visibleListHeight = 18;
-  const maxListScroll = Math.max(0, (columnHeight - visibleListHeight) / 2);
+  let maxListScroll = 0;
+
+function updateListMetrics() {
+    columnHeight =
+      settings.totalDays * settings.slotsPerDay * itemGap +
+      (settings.totalDays - 1) * (dayGap - itemGap);
+
+    listTopY = listStartY;
+
+    maxListScroll = Math.max(
+      0,
+      columnHeight - visibleListHeight
+    );
+  }
 
   async function loadArchiveData() {
-    try {
-      const response = await fetch(dataUrl);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  try {
+    const response = await fetch(dataUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const json = await response.json();
-      archiveData = Array.isArray(json?.tracks) ? json.tracks : [];
-    } catch (error) {
-      console.error("Errore caricamento archive.json:", error);
-      archiveData = [];
-    }
+    const json = await response.json();
+    archiveData = Array.isArray(json?.tracks) ? json.tracks : [];
+
+    updateListMetrics();
+  } catch (error) {
+    console.error("Errore caricamento archive.json:", error);
+    archiveData = [];
   }
+}
 
   await loadArchiveData();
 
@@ -239,12 +253,19 @@ export async function initArchiveOrbitScene({
   bindUI();
   onResize();
   animate();
+  await spawnTracksSequentially();
+
+  const REFRESH_INTERVAL = 1 * 60 * 1000; // 1 minuti
+  // const REFRESH_INTERVAL = 500000; // 10 secondi
+  setInterval(refreshArchiveData, REFRESH_INTERVAL);
 
   function buildOrbitSystem() {
     clearGroup(orbitGroup);
     clearGroup(trackGroup);
     trackMeshes.length = 0;
     dayLabels.length = 0;
+    trackLabels.length = 0;
+    knownTrackKeys.clear();
     if (labelLayer) labelLayer.innerHTML = "";
 
     for (let day = 0; day < settings.totalDays; day++) {
@@ -254,27 +275,19 @@ export async function initArchiveOrbitScene({
     }
 
     for (let day = 0; day < settings.totalDays; day++) {
-      for (let slot = 0; slot < settings.slotsPerDay; slot++) {
-        const mesh = createTrackSphere(day, slot);
-        trackGroup.add(mesh);
-        trackMeshes.push(mesh);
-      }
-    }
-
-    for (let day = 0; day < settings.totalDays; day++) {
       const label = document.createElement("div");
       label.className = "day-label";
       label.textContent = `DAY ${day + 1}`;
       label.style.opacity = "0";
       labelLayer?.appendChild(label);
 
-      const firstSphere = trackMeshes[day * settings.slotsPerDay];
+      const firstSlotPos = getListPosition(day, 0);
 
       dayLabels.push({
         el: label,
         anchor: new THREE.Vector3(
-          firstSphere.userData.listPosition.x,
-          firstSphere.userData.listPosition.y + labelGap,
+          firstSlotPos.x,
+          firstSlotPos.y + labelGap,
           0
         )
       });
@@ -301,75 +314,133 @@ export async function initArchiveOrbitScene({
     return new THREE.LineLoop(geometry, material);
   }
 
-  function createTrackSphere(dayIndex, slotIndex) {
-    const geometry = new THREE.SphereGeometry(
-      settings.sphereRadius,
-      settings.sphereSegments,
-      settings.sphereSegments
-    );
+    function createTrackSphere(trackData) {
+      const dayIndex = (trackData.dayIndex ?? trackData.day ?? 1) - 1;
+      const slotIndex = (trackData.slotIndex ?? trackData.slot ?? 1) - 1;
 
-    const trackData =
-      archiveData.find((item) => {
-        const d = (item.dayIndex ?? item.day ?? 0);
-        const s = (item.slotIndex ?? item.slot ?? 0);
+      const geometry = new THREE.SphereGeometry(
+        settings.sphereRadius,
+        settings.sphereSegments,
+        settings.sphereSegments
+      );
 
-        return d === dayIndex || d === dayIndex + 1
-          ? s === slotIndex || s === slotIndex + 1
-          : false;
-      }) || null;
+      const sphereMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xf8f4ea,
+        emissive: 0xfff4e6,
+        emissiveIntensity: 0.14,
+        metalness: 0.12,
+        roughness: 0.16,
+        clearcoat: 1,
+        clearcoatRoughness: 0.06,
+        reflectivity: 1,
+        transparent: true,
+        opacity: settings.sphereOpacity
+      });
 
-    const sphereMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xf8f4ea,
-      emissive: 0xfff4e6,
-      emissiveIntensity: 0.14,
-      metalness: 0.12,
-      roughness: 0.16,
-      clearcoat: 1,
-      clearcoatRoughness: 0.06,
-      reflectivity: 1,
-      transparent: true,
-      opacity: settings.sphereOpacity
+      const mesh = new THREE.Mesh(geometry, sphereMaterial);
+
+      const sphereGlowMaterial = new THREE.SpriteMaterial({
+        map: sphereGlowTexture,
+        color: 0xfff8ee,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+
+      const sphereGlow = new THREE.Sprite(sphereGlowMaterial);
+      sphereGlow.scale.set(2.2, 2.2, 1);
+      mesh.add(sphereGlow);
+
+      const orbitPos = getOrbitPosition(dayIndex, slotIndex);
+      const listPos = getListPosition(dayIndex, slotIndex);
+
+      mesh.position.copy(orbitPos);
+
+      mesh.userData = {
+        dayIndex,
+        slotIndex,
+        title: trackData.title || `Track ${String(slotIndex + 1).padStart(2, "0")}`,
+        meta: `Day ${dayIndex + 1} · Slot ${slotIndex + 1}`,
+        trackData,
+        orbitPosition: orbitPos.clone(),
+        listPosition: listPos.clone()
+      };
+
+      return mesh;
+    }
+
+function addTrack(trackData) {
+  const day = trackData.dayIndex ?? trackData.day ?? 1;
+  const slot = trackData.slotIndex ?? trackData.slot ?? 1;
+
+  const trackKey = `${day}-${slot}`;
+
+  if (knownTrackKeys.has(trackKey)) return;
+
+  knownTrackKeys.add(trackKey);
+
+  const mesh = createTrackSphere(trackData);
+
+  mesh.scale.set(0.001, 0.001, 0.001);
+  mesh.material.opacity = 0;
+  mesh.userData.bornTime = performance.now();
+  mesh.userData.trackKey = trackKey;
+
+  trackGroup.add(mesh);
+  trackMeshes.push(mesh);
+
+  const trackLabel = document.createElement("div");
+    trackLabel.className = "track-label";
+    trackLabel.textContent = trackData.title || `Track ${slot}`;
+    trackLabel.style.opacity = "0";
+    labelLayer?.appendChild(trackLabel);
+
+    trackLabels.push({
+      el: trackLabel,
+      anchor: mesh.userData.listPosition.clone(),
+      mesh
     });
+}
 
-    const mesh = new THREE.Mesh(geometry, sphereMaterial);
+  async function spawnTracksSequentially() {
 
-    const sphereGlowMaterial = new THREE.SpriteMaterial({
-      map: sphereGlowTexture,
-      color: 0xfff8ee,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    });
+    for (const track of archiveData) {
 
-    const sphereGlow = new THREE.Sprite(sphereGlowMaterial);
-    sphereGlow.scale.set(2.2, 2.2, 1);
-    mesh.add(sphereGlow);
+      addTrack(track);
 
-    const orbitPos = getOrbitPosition(dayIndex, slotIndex);
-    const listPos = getListPosition(dayIndex, slotIndex);
+      await new Promise(r => setTimeout(r, 250));
+    }
 
-    mesh.position.copy(orbitPos);
-
-    mesh.userData = {
-      dayIndex,
-      slotIndex,
-      title:
-        trackData?.title || `Track ${String(slotIndex + 1).padStart(2, "0")}`,
-      meta: trackData
-        ? `Day ${trackData.dayIndex ?? trackData.day ?? dayIndex + 1} · Slot ${trackData.slotIndex ?? trackData.slot ?? slotIndex + 1}`
-        : `Day ${dayIndex + 1} · Slot ${slotIndex + 1}`,
-      trackData,
-      orbitPosition: orbitPos.clone(),
-      listPosition: listPos.clone()
-    };
-
-    return mesh;
   }
+
+async function refreshArchiveData() {
+  try {
+    const response = await fetch(`${dataUrl}?t=${Date.now()}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const json = await response.json();
+    const nextTracks = Array.isArray(json?.tracks) ? json.tracks : [];
+
+    archiveData = nextTracks;
+
+    for (const track of nextTracks) {
+      const day = track.dayIndex ?? track.day ?? 1;
+      const slot = track.slotIndex ?? track.slot ?? 1;
+      const trackKey = `${day}-${slot}`;
+
+      if (!knownTrackKeys.has(trackKey)) {
+        addTrack(track);
+      }
+    }
+  } catch (error) {
+    console.error("Errore refresh archive.json:", error);
+  }
+}
 
   function getOrbitPosition(dayIndex, slotIndex) {
     const radius = settings.innerRadius + dayIndex * settings.orbitGap;
-    const rotationOffset = 61; // circa 18°
+    const rotationOffset = THREE.MathUtils.degToRad(18);
     const angle =
       (slotIndex / settings.slotsPerDay) * Math.PI * 2 - Math.PI / 2 + rotationOffset;
 
@@ -381,17 +452,13 @@ export async function initArchiveOrbitScene({
   }
 
   function getListPosition(dayIndex, slotIndex) {
-    const columnIndex = dayIndex < daysPerColumn ? 0 : 1;
-    const rowInColumn = dayIndex % daysPerColumn;
+    const absoluteIndex = dayIndex * settings.slotsPerDay + slotIndex;
+    const extraOffset = dayIndex * (dayGap - itemGap);
 
-    const listIndexBeforeDay = rowInColumn * settings.slotsPerDay;
-    const extraOffset = rowInColumn * (dayGap - itemGap);
-    const absoluteIndex = listIndexBeforeDay + slotIndex;
+    const y = listTopY - (absoluteIndex * itemGap + extraOffset);
+    const x = listX;
 
-    const listY = listTopY - (absoluteIndex * itemGap + extraOffset);
-    const listX = columnIndex === 0 ? -columnGap / 2 : columnGap / 2;
-
-    return new THREE.Vector3(listX, listY, 0);
+    return new THREE.Vector3(x, y, 0);
   }
 
   function openSheet(data) {
@@ -631,13 +698,15 @@ export async function initArchiveOrbitScene({
 
           lastTouchY = touch.clientY;
 
-          targetListScrollY -= deltaY * 0.03;
-          targetListScrollY = THREE.MathUtils.clamp(
-            targetListScrollY,
-            -maxListScroll,
-            maxListScroll
-          );
-          return;
+        targetListScrollY -= deltaY * 0.03;
+
+        targetListScrollY = THREE.MathUtils.clamp(
+          targetListScrollY,
+          -maxListScroll,
+          0
+        );
+
+        return;
         }
 
         if (event.touches.length !== 2) return;
@@ -677,10 +746,11 @@ export async function initArchiveOrbitScene({
 
         event.preventDefault();
         targetListScrollY += event.deltaY * 0.01;
+
         targetListScrollY = THREE.MathUtils.clamp(
           targetListScrollY,
           -maxListScroll,
-          maxListScroll
+          0
         );
       },
       { passive: false }
@@ -740,7 +810,14 @@ export async function initArchiveOrbitScene({
         emissive = 0.70;
       }
 
-      sphere.scale.setScalar(targetScale);
+      const birthT = sphere.userData.bornTime
+        ? Math.min((performance.now() - sphere.userData.bornTime) / 700, 1)
+        : 1;
+
+      const birthScale = THREE.MathUtils.smoothstep(birthT, 0, 1);
+      sphere.scale.setScalar(targetScale * birthScale);
+
+      sphere.material.opacity = birthScale;
       sphere.material.emissiveIntensity = emissive;
 
       const glow = sphere.children[0];
@@ -782,6 +859,28 @@ export async function initArchiveOrbitScene({
       el.style.top = `${y}px`;
       el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5))}`;
     }
+
+    for (const labelData of trackLabels) {
+      const { el, anchor, mesh } = labelData;
+
+      const anchorPos = anchor.clone();
+      anchorPos.y += listScrollY;
+
+      const projected = anchorPos.project(camera);
+
+      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+      const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+
+      el.style.left = `${x + 28}px`;
+      el.style.top = `${y}px`;
+      el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.3) / 0.45))}`;
+
+      if (mesh === selectedSphere) {
+        el.style.fontWeight = "600";
+      } else {
+        el.style.fontWeight = "400";
+      }
+    }
   }
 
   function updateCamera() {
@@ -811,15 +910,15 @@ export async function initArchiveOrbitScene({
     haloOuter.material.opacity = 0.03 + pulse * 0.01;
   }
 
-  function animate() {
-    animationId = requestAnimationFrame(animate);
+function animate() {
+  animationId = requestAnimationFrame(animate);
 
-    time += 0.005;
-    updateLayout();
-    updateCamera();
+  time += 0.005;
+  updateLayout();
+  updateCamera();
 
-    renderer.render(scene, camera);
-  }
+  renderer.render(scene, camera);
+}
 
   function setArchiveMode() {
     layoutMode = "archive";
@@ -904,6 +1003,7 @@ export async function initArchiveOrbitScene({
     reload: async () => {
       await loadArchiveData();
       buildOrbitSystem();
+      await spawnTracksSequentially();
     }
   };
 }
