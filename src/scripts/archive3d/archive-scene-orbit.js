@@ -22,7 +22,7 @@ const DEFAULTS = {
   zoomMax: 28,
   zoomStep: 2.2,
 
-  transitionSpeed: 0.08
+  transitionSpeed: 0.05
 };
 
 export async function initArchiveOrbitScene({
@@ -174,6 +174,7 @@ export async function initArchiveOrbitScene({
   const trackMeshes = [];
   const dayLabels = [];
   const trackLabels = [];
+  const orbitLines = [];
   const knownTrackKeys = new Set();
 
   const raycaster = new THREE.Raycaster();
@@ -208,8 +209,8 @@ export async function initArchiveOrbitScene({
   const CAMERA_MAX = settings.zoomMax;
   const CAMERA_DEFAULT = settings.cosmicCameraZ;
 
- const listX = -2.8;
-  const itemGap = 1;
+  const listX = -2.8;
+  const itemGap = 0.8;
   const dayGap = 2.2;
   const labelGap = 0.9;
   const listStartY = 5.8;
@@ -265,6 +266,7 @@ function updateListMetrics() {
     trackMeshes.length = 0;
     dayLabels.length = 0;
     trackLabels.length = 0;
+    orbitLines.length = 0;
     knownTrackKeys.clear();
     if (labelLayer) labelLayer.innerHTML = "";
 
@@ -272,47 +274,101 @@ function updateListMetrics() {
       const radius = settings.innerRadius + day * settings.orbitGap;
       const ring = createOrbitRing(radius);
       orbitGroup.add(ring);
-    }
 
-    for (let day = 0; day < settings.totalDays; day++) {
-      const label = document.createElement("div");
-      label.className = "day-label";
-      label.textContent = `DAY ${day + 1}`;
-      label.style.opacity = "0";
-      labelLayer?.appendChild(label);
-
-      const firstSlotPos = getListPosition(day, 0);
-
-      dayLabels.push({
-        el: label,
-        anchor: new THREE.Vector3(
-          firstSlotPos.x,
-          firstSlotPos.y + labelGap,
-          0
-        )
+      orbitLines.push({
+        line: ring,
+        dayIndex: day,
+        radius
       });
     }
+
+  for (let day = 0; day < settings.totalDays; day++) {
+    const label = document.createElement("div");
+    label.className = "day-label";
+    label.textContent = `DAY ${day + 1}`;
+    label.style.opacity = "0";
+    labelLayer?.appendChild(label);
+
+    const radius = settings.innerRadius + day * settings.orbitGap;
+    const cosmicAngle = THREE.MathUtils.degToRad(-35);
+    const cosmicLabelOffset = 0.5;
+
+    const cosmicAnchor = new THREE.Vector3(
+      Math.cos(cosmicAngle) * (radius + cosmicLabelOffset),
+      Math.sin(cosmicAngle) * (radius + cosmicLabelOffset),
+      0
+    );
+
+    const listAnchor = new THREE.Vector3(
+      listX,
+      getDayListLabelY(day),
+      0
+    );
+
+    dayLabels.push({
+      el: label,
+      cosmicAnchor,
+      listAnchor
+    });
+  }
   }
 
-  function createOrbitRing(radius, segments = 128) {
+  function updateOrbitLines() {
+  const segments = 128;
+  const halfLineWidth = 5.4;
+
+  for (const orbit of orbitLines) {
+    const { line, dayIndex, radius } = orbit;
     const points = [];
 
+    const targetY = getDayListLineY(dayIndex) + listScrollY;
+
     for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector3(
-          Math.cos(angle) * radius,
-          Math.sin(angle) * radius,
-          0
-        )
-      );
+      const t = i / segments;
+
+      const angle = t * Math.PI * 2;
+      const circleX = Math.cos(angle) * radius;
+      const circleY = Math.sin(angle) * radius;
+
+      const lineX = THREE.MathUtils.lerp(-halfLineWidth, halfLineWidth, t);
+      const lineY = targetY;
+
+      const x = THREE.MathUtils.lerp(circleX, lineX, layoutLerp);
+      const y = THREE.MathUtils.lerp(circleY, lineY, layoutLerp);
+
+      points.push(new THREE.Vector3(x, y, 0));
     }
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = orbitMaterial.clone();
+    points.push(points[0].clone());
 
-    return new THREE.LineLoop(geometry, material);
+    line.geometry.dispose();
+    line.geometry = new THREE.BufferGeometry().setFromPoints(points);
   }
+}
+
+
+  function createOrbitRing(radius, segments = 128) {
+      const points = [];
+
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        points.push(
+          new THREE.Vector3(
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius,
+            0
+          )
+        );
+      }
+
+      // chiusura manuale del cerchio
+      points.push(points[0].clone());
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = orbitMaterial.clone();
+
+      return new THREE.Line(geometry, material);
+    }
 
     function createTrackSphere(trackData) {
       const dayIndex = (trackData.dayIndex ?? trackData.day ?? 1) - 1;
@@ -459,6 +515,15 @@ async function refreshArchiveData() {
     const x = listX;
 
     return new THREE.Vector3(x, y, 0);
+  }
+
+  function getDayListLineY(dayIndex) {
+    const firstSlotPos = getListPosition(dayIndex, 0);
+    return firstSlotPos.y + labelGap - 0.35;
+  }
+
+  function getDayListLabelY(dayIndex) {
+    return getDayListLineY(dayIndex) + 0.32;
   }
 
   function openSheet(data) {
@@ -698,13 +763,13 @@ async function refreshArchiveData() {
 
           lastTouchY = touch.clientY;
 
-        targetListScrollY -= deltaY * 0.03;
+          targetListScrollY -= deltaY * 0.03;
 
-        targetListScrollY = THREE.MathUtils.clamp(
-          targetListScrollY,
-          -maxListScroll,
-          0
-        );
+          targetListScrollY = THREE.MathUtils.clamp(
+            targetListScrollY,
+            -maxListScroll,
+            0
+          );
 
         return;
         }
@@ -789,6 +854,7 @@ async function refreshArchiveData() {
 
   function updateLayout() {
     layoutLerp += (layoutTarget - layoutLerp) * settings.transitionSpeed;
+    updateOrbitLines();
 
     for (const sphere of trackMeshes) {
       const orbitPosition = sphere.userData.orbitPosition;
@@ -840,15 +906,29 @@ async function refreshArchiveData() {
       }
     }
 
-    orbitGroup.visible = layoutLerp < 0.98;
+    for (const orbit of orbitLines) {
+      orbit.line.material.opacity = THREE.MathUtils.lerp(
+        settings.orbitOpacity,
+        0.16,
+        layoutLerp
+      );
+    }
+
     core.visible = true;
     halo.visible = true;
     haloOuter.visible = true;
 
     for (const labelData of dayLabels) {
-      const { el, anchor } = labelData;
-      const anchorPos = anchor.clone();
-      anchorPos.y += listScrollY;
+      const { el, cosmicAnchor, listAnchor } = labelData;
+
+      const listPos = listAnchor.clone();
+      listPos.y += listScrollY;
+
+      const anchorPos = new THREE.Vector3().lerpVectors(
+        cosmicAnchor,
+        listPos,
+        layoutLerp
+      );
 
       const projected = anchorPos.project(camera);
 
@@ -857,7 +937,19 @@ async function refreshArchiveData() {
 
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
-      el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5))}`;
+
+      const cosmicOpacity = 1 - Math.max(0, Math.min(1, layoutLerp / 0.35));
+      const listOpacity = Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5));
+
+      el.style.opacity = `${Math.max(cosmicOpacity, listOpacity)}`;
+
+      if (layoutLerp < 0.4) {
+        el.style.fontSize = "11px";
+        el.style.letterSpacing = "0.16em";
+      } else {
+        el.style.fontSize = "12px";
+        el.style.letterSpacing = "0.12em";
+      }
     }
 
     for (const labelData of trackLabels) {
