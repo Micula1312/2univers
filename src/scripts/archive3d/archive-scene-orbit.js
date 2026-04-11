@@ -764,13 +764,13 @@ async function refreshArchiveData() {
 
           lastTouchY = touch.clientY;
 
-          targetListScrollY -= deltaY * 0.03;
+        targetListScrollY -= deltaY * 0.03;
 
-          targetListScrollY = THREE.MathUtils.clamp(
-            targetListScrollY,
-            -maxListScroll,
-            0
-          );
+        targetListScrollY = THREE.MathUtils.clamp(
+          targetListScrollY,
+          0,
+          maxListScroll
+        );
 
         return;
         }
@@ -811,12 +811,12 @@ async function refreshArchiveData() {
         if (layoutMode !== "archive" || maxListScroll <= 0) return;
 
         event.preventDefault();
-        targetListScrollY -= event.deltaY * 0.01;
+        targetListScrollY += event.deltaY * 0.01;
 
         targetListScrollY = THREE.MathUtils.clamp(
           targetListScrollY,
-          -maxListScroll,
-          0
+          0,
+          maxListScroll
         );
         },
       { passive: false }

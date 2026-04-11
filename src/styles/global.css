@@ -240,7 +240,7 @@ body {
 }
 
 .track-sheet__player {
-  display: grid;
+  display: flex;
   grid-template-columns: auto 1fr;
   gap: 14px;
   align-items: center;
@@ -327,11 +327,6 @@ body {
   .track-sheet__player {
     grid-template-columns: 1fr;
   }
-
-  .track-sheet__play {
-    width: 100%;
-  }
-
 
   .track-sheet__action {
     width: 100%;
