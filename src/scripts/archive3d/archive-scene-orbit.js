@@ -217,7 +217,7 @@ export async function initArchiveOrbitScene({
 
   let columnHeight = 0;
   let listTopY = 0;
-  const visibleListHeight = 18;
+  const visibleListHeight = 12;
   let maxListScroll = 0;
 
 function updateListMetrics() {
@@ -751,6 +751,7 @@ async function refreshArchiveData() {
       "touchmove",
       (event) => {
         if (layoutMode === "archive" && event.touches.length === 1 && isListDragging) {
+          if (maxListScroll <= 0) return;
           const touch = event.touches[0];
           const deltaY = touch.clientY - lastTouchY;
 
@@ -763,7 +764,7 @@ async function refreshArchiveData() {
 
           lastTouchY = touch.clientY;
 
-          targetListScrollY -= deltaY * 0.03;
+          targetListScrollY += deltaY * 0.03;
 
           targetListScrollY = THREE.MathUtils.clamp(
             targetListScrollY,
@@ -807,17 +808,17 @@ async function refreshArchiveData() {
     renderer.domElement.addEventListener(
       "wheel",
       (event) => {
-        if (layoutMode !== "archive") return;
+        if (layoutMode !== "archive" || maxListScroll <= 0) return;
 
         event.preventDefault();
-        targetListScrollY += event.deltaY * 0.01;
+        targetListScrollY -= event.deltaY * 0.01;
 
         targetListScrollY = THREE.MathUtils.clamp(
           targetListScrollY,
           -maxListScroll,
           0
         );
-      },
+        },
       { passive: false }
     );
 
