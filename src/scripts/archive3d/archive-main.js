@@ -72,15 +72,15 @@ export async function initArchiveApp() {
 
   window.setTimeout(() => {
     appRoot?.classList.add("is-scene-ready");
-  }, 2200);
+  }, 1450);
 
   window.setTimeout(() => {
     appRoot?.classList.add("is-ui-ready");
-  }, 2450);
+  }, 1750);
 
   window.setTimeout(() => {
     hidePreloader();
-  }, 2850);
+  }, 2100);
 
   return {
     scene,
