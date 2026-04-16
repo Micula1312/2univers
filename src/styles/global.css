@@ -377,8 +377,10 @@ body {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  display: block;
   width: auto;
-  height: 40px;
+  height: auto;
+  max-width: none;
   opacity: 0.92;
   pointer-events: none;
   z-index: 31;
@@ -388,10 +390,13 @@ body {
 .center-logo--top {
   top: max(18px, env(safe-area-inset-top, 0));
   height: 60px;
+  width: auto;
 }
 
 .center-logo--bottom {
   bottom: max(18px, env(safe-area-inset-bottom, 0));
+  height: 40px;
+  width: auto;
 }
 
 /* LABELS */
@@ -447,16 +452,16 @@ body {
 
 @media (max-width: 700px) {
 
-  .center-logo {
-    width: 90px;
-  }
-
   .center-logo--top {
     top: 12px;
+    height: 80px;
+    width: auto;
   }
 
   .center-logo--bottom {
     bottom: 12px;
+    height: 50px;
+    width: auto;
   }
 
   .camera-controls {
@@ -583,13 +588,13 @@ body {
 
 .preloader__title-side--left {
   right: 50%;
-  margin-right: 90px;
+  margin-right: 5px;
   transform: translateX(-30px) translateY(-50%);
 }
 
 .preloader__title-side--right {
   left: 50%;
-  margin-left: 90px;
+  margin-left: 5px;
   transform: translateX(30px) translateY(-50%);
 }
 

@@ -89,6 +89,7 @@ export async function initArchiveOrbitScene({
   frame.innerHTML = `
     <img class="center-logo center-logo--top" src="/images/mhero-logo.png" alt="">
     <img class="center-logo center-logo--bottom" src="/images/voyah-logo.png" alt="">
+    <img class="mdw-logo" src="/images/mdw.png" alt="Milano Design Week 2025">
   `;
   container.appendChild(frame);
 
@@ -1145,6 +1146,12 @@ function setCosmicMode() {
   closeSheet();
 }
 
+function rotateToNextSlot() {
+  const stepAngle = (Math.PI * 2) / settings.slotsPerDay;
+  targetRotationY -= stepAngle;
+  closeSheet();
+}
+
   function clearGroup(group) {
     while (group.children.length) {
       const child = group.children.pop();
@@ -1188,6 +1195,7 @@ function setCosmicMode() {
     setArchiveMode,
     zoomIn,
     zoomOut,
+    rotateToNextSlot,
     resetView,
     destroy,
     getMode: () => layoutMode,

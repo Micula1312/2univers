@@ -53,7 +53,8 @@ export async function initArchiveApp() {
     },
 
     onReset: () => {
-      scene.resetView();
+      scene.setCosmicMode();
+      scene.rotateToNextSlot();
       ui?.setMode("cosmic");
     },
 
