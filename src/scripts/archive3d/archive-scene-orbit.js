@@ -57,20 +57,32 @@ export async function initArchiveOrbitScene({
 
   container.innerHTML = "";
 
+  const nucleusLink = document.createElement("a");
+  nucleusLink.href = "https://dongfeng-italia.it/";
+  nucleusLink.target = "_blank";
+  nucleusLink.rel = "noopener";
+  nucleusLink.className = "archive-nucleus";
+
+  nucleusLink.innerHTML = `
+    <span class="archive-nucleus__halo archive-nucleus__halo--inner"></span>
+    <span class="archive-nucleus__halo archive-nucleus__halo--outer"></span>
+    <img
+      src="/images/nucleo.png"
+      alt="Dongfeng nucleus"
+      class="archive-nucleus__img"
+    >
+  `;
+
+  container.appendChild(nucleusLink);
+
   let bgOverlay = document.createElement("div");
   bgOverlay.className = "bg-texture-overlay";
   container.appendChild(bgOverlay);
 
-  const overlayImages = [
-    "/images/bg-overlay-1.jpg",
-    "/images/bg-overlay-2.jpg",
-    "/images/bg-overlay-3.jpg"
-  ];
-
-  const randomOverlay =
-    overlayImages[Math.floor(Math.random() * overlayImages.length)];
-
-  bgOverlay.style.backgroundImage = `url("${randomOverlay}")`;
+  bgOverlay.style.backgroundImage = 'url("/images/bg-overlay-3.jpg")';
+  bgOverlay.style.backgroundPosition = "center center";
+  bgOverlay.style.backgroundRepeat = "no-repeat";
+  bgOverlay.style.backgroundSize = "cover";
 
   let frame = document.createElement("div");
   frame.className = "keyvisual-frame";
@@ -96,6 +108,10 @@ export async function initArchiveOrbitScene({
   renderer.setClearColor(0x000000, 0);
   container.appendChild(renderer.domElement);
 
+  renderer.domElement.style.position = "absolute";
+  renderer.domElement.style.inset = "0";
+  renderer.domElement.style.zIndex = "10";
+
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
   scene.add(ambientLight);
 
@@ -118,50 +134,7 @@ export async function initArchiveOrbitScene({
   archiveGroup.add(orbitGroup);
   archiveGroup.add(trackGroup);
 
-  const textureLoader = new THREE.TextureLoader();
-  const coreMap = textureLoader.load("/images/core-texture.png");
-  coreMap.colorSpace = THREE.SRGBColorSpace;
 
-  const coreGeometry = new THREE.SphereGeometry(1.15, 48, 48);
-  const coreMaterial = new THREE.MeshPhysicalMaterial({
-    map: coreMap,
-    color: 0xc29a61,
-    emissive: 0x3a2915,
-    emissiveIntensity: 0.14,
-    metalness: 0.08,
-    roughness: 0.92,
-    clearcoat: 0.02,
-    clearcoatRoughness: 1
-  });
-
-  const core = new THREE.Mesh(coreGeometry, coreMaterial);
-  scene.add(core);
-
-  const haloMaterial = new THREE.SpriteMaterial({
-    map: createGlowTexture(),
-    color: 0xf5e7c8,
-    transparent: true,
-    opacity: 0.10,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-
-  const halo = new THREE.Sprite(haloMaterial);
-  halo.scale.set(5.6, 5.6, 1);
-  scene.add(halo);
-
-  const haloOuterMaterial = new THREE.SpriteMaterial({
-    map: createGlowTexture(),
-    color: 0xf2e2c5,
-    transparent: true,
-    opacity: 0.04,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-
-  const haloOuter = new THREE.Sprite(haloOuterMaterial);
-  haloOuter.scale.set(9.5, 9.5, 1);
-  scene.add(haloOuter);
 
   const orbitMaterial = new THREE.LineBasicMaterial({
     color: settings.orbitColor,
@@ -174,6 +147,7 @@ export async function initArchiveOrbitScene({
   const trackMeshes = [];
   const dayLabels = [];
   const trackLabels = [];
+  const placeholderLabels = [];
   const orbitLines = [];
   const knownTrackKeys = new Set();
 
@@ -188,6 +162,11 @@ export async function initArchiveOrbitScene({
   let layoutMode = "cosmic";
   let layoutTarget = 0;
   let layoutLerp = 0;
+
+  let orbitIntroStart = performance.now();
+  const ORBIT_INTRO_DELAY = 1800;
+  const ORBIT_STAGGER = 140;
+  const ORBIT_FADE_MS = 650;
 
   let time = 0;
   let cameraRadius = settings.cosmicCameraZ;
@@ -205,9 +184,19 @@ export async function initArchiveOrbitScene({
   let touchStartY = 0;
   let touchMoved = false;
 
+  let isRotating = false;
+  let rotateStartX = 0;
+  let rotateStartY = 0;
+
+  let targetRotationX = 0;
+  let targetRotationY = 0;
+  let currentRotationX = 0;
+  let currentRotationY = 0;
+
   const CAMERA_MIN = settings.zoomMin;
   const CAMERA_MAX = settings.zoomMax;
   const CAMERA_DEFAULT = settings.cosmicCameraZ;
+
 
   const listX = -2.8;
   const itemGap = 0.8;
@@ -267,50 +256,80 @@ function updateListMetrics() {
     dayLabels.length = 0;
     trackLabels.length = 0;
     orbitLines.length = 0;
+    placeholderLabels.length = 0;
     knownTrackKeys.clear();
     if (labelLayer) labelLayer.innerHTML = "";
 
     for (let day = 0; day < settings.totalDays; day++) {
       const radius = settings.innerRadius + day * settings.orbitGap;
       const ring = createOrbitRing(radius);
+      ring.material.opacity = 0;
       orbitGroup.add(ring);
 
       orbitLines.push({
         line: ring,
         dayIndex: day,
-        radius
+        radius,
+        introIndex: day
       });
     }
 
   for (let day = 0; day < settings.totalDays; day++) {
-    const label = document.createElement("div");
-    label.className = "day-label";
-    label.textContent = `DAY ${day + 1}`;
-    label.style.opacity = "0";
-    labelLayer?.appendChild(label);
+      const label = document.createElement("div");
+      label.className = "day-label";
+      label.textContent = `DAY ${day + 1}`;
+      label.style.opacity = "0";
+      label.style.transform = "translate(-50%, -50%) translateY(8px)";
+      labelLayer?.appendChild(label);
 
-    const radius = settings.innerRadius + day * settings.orbitGap;
-    const cosmicAngle = THREE.MathUtils.degToRad(-35);
-    const cosmicLabelOffset = 0.5;
+      const radius = settings.innerRadius + day * settings.orbitGap;
+      const cosmicAngle = THREE.MathUtils.degToRad(-35);
+      const cosmicLabelOffset = 0.5;
 
-    const cosmicAnchor = new THREE.Vector3(
-      Math.cos(cosmicAngle) * (radius + cosmicLabelOffset),
-      Math.sin(cosmicAngle) * (radius + cosmicLabelOffset),
-      0
-    );
+      const cosmicAnchor = new THREE.Vector3(
+        Math.cos(cosmicAngle) * (radius + cosmicLabelOffset),
+        Math.sin(cosmicAngle) * (radius + cosmicLabelOffset),
+        0
+      );
 
-    const listAnchor = new THREE.Vector3(
-      listX,
-      getDayListLabelY(day),
-      0
-    );
+      const listAnchor = new THREE.Vector3(
+        listX,
+        getDayListLabelY(day),
+        0
+      );
 
-    dayLabels.push({
-      el: label,
-      cosmicAnchor,
-      listAnchor
-    });
-  }
+      dayLabels.push({
+        el: label,
+        cosmicAnchor,
+        listAnchor
+      });
+    }
+    for (let day = 0; day < settings.totalDays; day++) {
+      for (let slot = 0; slot < settings.slotsPerDay; slot++) {
+        const dayNumber = day + 1;
+        const slotNumber = slot + 1;
+
+        const trackExists = archiveData.some((track) => {
+          const trackDay = track.dayIndex ?? track.day ?? 1;
+          const trackSlot = track.slotIndex ?? track.slot ?? 1;
+          return trackDay === dayNumber && trackSlot === slotNumber;
+        });
+
+        if (trackExists) continue;
+
+        const placeholder = document.createElement("div");
+        placeholder.className = "track-placeholder";
+        placeholder.style.opacity = "0";
+        labelLayer?.appendChild(placeholder);
+
+        placeholderLabels.push({
+          el: placeholder,
+          anchor: getListPosition(day, slot).clone(),
+          dayIndex: day,
+          slotIndex: slot
+        });
+      }
+    }
   }
 
   function updateOrbitLines() {
@@ -345,6 +364,27 @@ function updateListMetrics() {
     line.geometry = new THREE.BufferGeometry().setFromPoints(points);
   }
 }
+
+  function updateOrbitIntro() {
+    const elapsed = performance.now() - orbitIntroStart;
+
+    for (const orbit of orbitLines) {
+      const start = ORBIT_INTRO_DELAY + orbit.introIndex * ORBIT_STAGGER;
+      const t = THREE.MathUtils.clamp((elapsed - start) / ORBIT_FADE_MS, 0, 1);
+      orbit.line.userData.introT = t;
+    }
+
+    for (let i = 0; i < dayLabels.length; i++) {
+      const labelData = dayLabels[i];
+      const start =
+        ORBIT_INTRO_DELAY +
+        orbitLines.length * ORBIT_STAGGER +
+        i * 90;
+
+      const t = THREE.MathUtils.clamp((elapsed - start) / 420, 0, 1);
+      labelData.introT = t;
+    }
+  }
 
 
   function createOrbitRing(radius, segments = 128) {
@@ -445,6 +485,18 @@ function addTrack(trackData) {
 
   trackGroup.add(mesh);
   trackMeshes.push(mesh);
+
+  const dayIndex = (trackData.dayIndex ?? trackData.day ?? 1) - 1;
+  const slotIndex = (trackData.slotIndex ?? trackData.slot ?? 1) - 1;
+
+  for (let i = placeholderLabels.length - 1; i >= 0; i--) {
+    const p = placeholderLabels[i];
+    if (p.dayIndex === dayIndex && p.slotIndex === slotIndex) {
+      p.el.remove();
+      placeholderLabels.splice(i, 1);
+      break;
+    }
+  }
 
   const trackLabel = document.createElement("div");
     trackLabel.className = "track-label";
@@ -686,32 +738,33 @@ async function refreshArchiveData() {
         { passive: false }
       );
 
-    renderer.domElement.addEventListener("pointermove", (event) => {
-      const hit = pickSphere(event.clientX, event.clientY);
-      hoveredSphere = hit || null;
-      renderer.domElement.style.cursor = hit ? "pointer" : "default";
-    });
+renderer.domElement.addEventListener("pointermove", (event) => {
+  const hitSphere = pickSphere(event.clientX, event.clientY);
+  hoveredSphere = hitSphere || null;
+  renderer.domElement.style.cursor = hitSphere ? "pointer" : "default";
+});
 
-    renderer.domElement.addEventListener("click", (event) => {
-      const hit = pickSphere(event.clientX, event.clientY);
-      if (!hit) return;
+renderer.domElement.addEventListener("click", (event) => {
+  const hitSphere = pickSphere(event.clientX, event.clientY);
+  if (!hitSphere) return;
 
-      const isSheetOpen = sheet?.classList.contains("is-open");
+  const isSheetOpen = sheet?.classList.contains("is-open");
 
-      if (isSheetOpen && selectedSphere === hit) {
-        closeSheet();
-        return;
-      }
+  if (isSheetOpen && selectedSphere === hitSphere) {
+    closeSheet();
+    return;
+  }
 
-      selectedSphere = hit;
-      openSheet(hit.userData);
-    });
+  selectedSphere = hitSphere;
+  openSheet(hitSphere.userData);
+});
 
     renderer.domElement.addEventListener(
       "touchstart",
       (event) => {
         if (event.touches.length === 2) {
           isListDragging = false;
+          isRotating = false;
           pinchStartDistance = getTouchDistance(event.touches[0], event.touches[1]);
           pinchStartRadius = targetCameraRadius;
           return;
@@ -730,28 +783,22 @@ async function refreshArchiveData() {
             return;
           }
 
-          const hit = pickSphere(touch.clientX, touch.clientY);
-          if (!hit) return;
-
-          const isSheetOpen = sheet?.classList.contains("is-open");
-
-          if (isSheetOpen && selectedSphere === hit) {
-            closeSheet();
-            return;
+          if (layoutMode === "cosmic") {
+            isRotating = true;
+            rotateStartX = touch.clientX;
+            rotateStartY = touch.clientY;
           }
-
-          selectedSphere = hit;
-          openSheet(hit.userData);
         }
       },
       { passive: true }
     );
 
     renderer.domElement.addEventListener(
-      "touchmove",
+  "touchmove",
       (event) => {
         if (layoutMode === "archive" && event.touches.length === 1 && isListDragging) {
           if (maxListScroll <= 0) return;
+
           const touch = event.touches[0];
           const deltaY = touch.clientY - lastTouchY;
 
@@ -764,15 +811,37 @@ async function refreshArchiveData() {
 
           lastTouchY = touch.clientY;
 
-        targetListScrollY -= deltaY * 0.03;
+          targetListScrollY -= deltaY * 0.03;
+          targetListScrollY = THREE.MathUtils.clamp(
+            targetListScrollY,
+            0,
+            maxListScroll
+          );
 
-        targetListScrollY = THREE.MathUtils.clamp(
-          targetListScrollY,
-          0,
-          maxListScroll
-        );
+          return;
+        }
 
-        return;
+        if (layoutMode === "cosmic" && event.touches.length === 1 && isRotating) {
+          const touch = event.touches[0];
+          const deltaX = touch.clientX - rotateStartX;
+          const deltaY = touch.clientY - rotateStartY;
+
+          if (
+            Math.abs(touch.clientY - touchStartY) > 8 ||
+            Math.abs(touch.clientX - touchStartX) > 8
+          ) {
+            touchMoved = true;
+          }
+
+          rotateStartX = touch.clientX;
+          rotateStartY = touch.clientY;
+
+          targetRotationY += deltaX * 0.005;
+          targetRotationX += deltaY * 0.003;
+
+          targetRotationX = THREE.MathUtils.clamp(targetRotationX, -0.45, 0.45);
+
+          return;
         }
 
         if (event.touches.length !== 2) return;
@@ -787,23 +856,31 @@ async function refreshArchiveData() {
       { passive: true }
     );
 
-    renderer.domElement.addEventListener(
-      "touchend",
-      (event) => {
-        if (layoutMode === "archive" && !touchMoved) {
-          const touch = event.changedTouches[0];
-          const hit = pickSphere(touch.clientX, touch.clientY);
-          if (hit) {
-            selectedSphere = hit;
-            openSheet(hit.userData);
-          }
-        }
+renderer.domElement.addEventListener(
+  "touchend",
+  (event) => {
+    if (!touchMoved && event.changedTouches.length > 0) {
+      const touch = event.changedTouches[0];
+      const hitSphere = pickSphere(touch.clientX, touch.clientY);
 
-        pinchStartDistance = 0;
-        isListDragging = false;
-      },
-      { passive: true }
-    );
+      if (hitSphere) {
+        const isSheetOpen = sheet?.classList.contains("is-open");
+
+        if (isSheetOpen && selectedSphere === hitSphere) {
+          closeSheet();
+        } else {
+          selectedSphere = hitSphere;
+          openSheet(hitSphere.userData);
+        }
+      }
+    }
+
+    pinchStartDistance = 0;
+    isListDragging = false;
+    isRotating = false;
+  },
+  { passive: true }
+);
 
     renderer.domElement.addEventListener(
       "wheel",
@@ -837,6 +914,7 @@ async function refreshArchiveData() {
     const intersects = raycaster.intersectObjects(trackMeshes, false);
     return intersects.length ? intersects[0].object : null;
   }
+
 
   function getTouchDistance(t1, t2) {
     const dx = t2.clientX - t1.clientX;
@@ -907,6 +985,24 @@ async function refreshArchiveData() {
       }
     }
 
+    for (const placeholderData of placeholderLabels) {
+      const { el, anchor } = placeholderData;
+
+      const anchorPos = anchor.clone();
+      anchorPos.y += listScrollY;
+
+      const projected = anchorPos.project(camera);
+
+      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+      const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+
+      const opacity = Math.max(0, Math.min(1, (layoutLerp - 0.3) / 0.45));
+      el.style.opacity = `${opacity}`;
+    }
+
     for (const orbit of orbitLines) {
       orbit.line.material.opacity = THREE.MathUtils.lerp(
         settings.orbitOpacity,
@@ -915,9 +1011,6 @@ async function refreshArchiveData() {
       );
     }
 
-    core.visible = true;
-    halo.visible = true;
-    haloOuter.visible = true;
 
     for (const labelData of dayLabels) {
       const { el, cosmicAnchor, listAnchor } = labelData;
@@ -942,7 +1035,13 @@ async function refreshArchiveData() {
       const cosmicOpacity = 1 - Math.max(0, Math.min(1, layoutLerp / 0.35));
       const listOpacity = Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5));
 
-      el.style.opacity = `${Math.max(cosmicOpacity, listOpacity)}`;
+      const introT = labelData.introT ?? 0;
+      const baseOpacity = Math.max(cosmicOpacity, listOpacity);
+
+      el.style.opacity = `${baseOpacity * introT}`;
+
+      const introYOffset = (1 - introT) * 8;
+      el.style.transform = `translate(-50%, -50%) translateY(${introYOffset}px)`;
 
       if (layoutLerp < 0.4) {
         el.style.fontSize = "11px";
@@ -952,6 +1051,7 @@ async function refreshArchiveData() {
         el.style.letterSpacing = "0.12em";
       }
     }
+    
 
     for (const labelData of trackLabels) {
       const { el, anchor, mesh } = labelData;
@@ -977,36 +1077,35 @@ async function refreshArchiveData() {
   }
 
   function updateCamera() {
-    cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
-    listScrollY += (targetListScrollY - listScrollY) * 0.12;
+  cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
+  listScrollY += (targetListScrollY - listScrollY) * 0.12;
 
-    const cosmicCamX = 0;
-    const cosmicCamY = Math.sin(time * 0.18) * 0.3;
-    const cosmicCamZ = cameraRadius;
+  currentRotationX += (targetRotationX - currentRotationX) * 0.08;
+  currentRotationY += (targetRotationY - currentRotationY) * 0.08;
 
-    const listCamX = 0;
-    const listCamY = 0;
-    const listCamZ = cameraRadius;
+  const camX = 0;
+  const camY = 0;
+  const camZ = cameraRadius;
 
-    camera.position.x = THREE.MathUtils.lerp(cosmicCamX, listCamX, layoutLerp);
-    camera.position.y = THREE.MathUtils.lerp(cosmicCamY, listCamY, layoutLerp);
-    camera.position.z = THREE.MathUtils.lerp(cosmicCamZ, listCamZ, layoutLerp);
-    camera.lookAt(0, 0, 0);
+  camera.position.x = camX;
+  camera.position.y = camY;
+  camera.position.z = camZ;
+  camera.lookAt(0, 0, 0);
 
-    archiveGroup.rotation.x = Math.sin(time * 0.22) * 0.04 * (1 - layoutLerp);
-    archiveGroup.rotation.y = Math.sin(time * 0.18) * 0.05 * (1 - layoutLerp);
-    archiveGroup.rotation.z = 0;
+  const idleRotationX = Math.sin(time * 0.22) * 0.03 * (1 - layoutLerp);
+  const idleRotationY = Math.sin(time * 0.18) * 0.035 * (1 - layoutLerp);
 
-    const pulse = (Math.sin(time * 1.4) + 1) * 0.5;
-    core.scale.setScalar(1 + pulse * 0.02);
-    halo.material.opacity = 0.08 + pulse * 0.02;
-    haloOuter.material.opacity = 0.03 + pulse * 0.01;
-  }
+  archiveGroup.rotation.x = idleRotationX + currentRotationX * (1 - layoutLerp);
+  archiveGroup.rotation.y = idleRotationY + currentRotationY * (1 - layoutLerp);
+  archiveGroup.rotation.z = 0;
+
+}
 
 function animate() {
   animationId = requestAnimationFrame(animate);
 
   time += 0.005;
+  updateOrbitIntro();
   updateCamera();
   updateLayout();
   
@@ -1015,17 +1114,17 @@ function animate() {
 }
 
   function setArchiveMode() {
-    layoutMode = "archive";
-    layoutTarget = 1;
-    targetCameraRadius = settings.archiveCameraZ;
-  }
+  layoutMode = "archive";
+  layoutTarget = 1;
+  targetCameraRadius = settings.archiveCameraZ;
+}
 
-  function setCosmicMode() {
-    layoutMode = "cosmic";
-    layoutTarget = 0;
-    targetCameraRadius = settings.cosmicCameraZ;
-    targetListScrollY = 0;
-  }
+function setCosmicMode() {
+  layoutMode = "cosmic";
+  layoutTarget = 0;
+  targetCameraRadius = settings.cosmicCameraZ;
+  targetListScrollY = 0;
+}
 
   function zoomIn() {
     targetCameraRadius = Math.max(CAMERA_MIN, targetCameraRadius - settings.zoomStep);
@@ -1036,11 +1135,15 @@ function animate() {
   }
 
   function resetView() {
-    targetCameraRadius = CAMERA_DEFAULT;
-    targetListScrollY = 0;
-    setCosmicMode();
-    closeSheet();
-  }
+  targetCameraRadius = CAMERA_DEFAULT;
+  targetListScrollY = 0;
+  targetRotationX = 0;
+  targetRotationY = 0;
+  currentRotationX = 0;
+  currentRotationY = 0;
+  setCosmicMode();
+  closeSheet();
+}
 
   function clearGroup(group) {
     while (group.children.length) {
@@ -1071,11 +1174,6 @@ function animate() {
 
     clearGroup(trackGroup);
     clearGroup(orbitGroup);
-
-    core.geometry.dispose();
-    core.material.dispose();
-    halo.material.dispose();
-    haloOuter.material.dispose();
 
     renderer.dispose();
     container.innerHTML = "";

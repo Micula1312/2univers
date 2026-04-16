@@ -65,23 +65,11 @@ export async function initArchiveCluster() {
 
   initKeyVisualPreloader();
 
-  const overlayImages = [
-      "/images/bg-overlay-1.jpg",
-      "/images/bg-overlay-2.jpg",
-      "/images/bg-overlay-3.jpg"
-    ];
+  let bgOverlay = document.createElement("div");
+    bgOverlay.className = "bg-texture-overlay";
+    container.appendChild(bgOverlay);
 
-    const randomOverlay =
-      overlayImages[Math.floor(Math.random() * overlayImages.length)];
-
-    let bgOverlay = container.querySelector(".bg-texture-overlay");
-    if (!bgOverlay) {
-      bgOverlay = document.createElement("div");
-      bgOverlay.className = "bg-texture-overlay";
-      container.appendChild(bgOverlay);
-    }
-
-    bgOverlay.style.backgroundImage = `url("${randomOverlay}")`;
+    bgOverlay.style.backgroundImage = 'url("/images/bg-overlay-3.jpg")';
 
   let frame = container.querySelector(".keyvisual-frame");
   if (!frame) {

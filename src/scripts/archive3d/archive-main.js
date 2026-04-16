@@ -5,10 +5,13 @@ import { showPreloader, hidePreloader } from "../ui/preloader.js";
 export async function initArchiveApp() {
   const archiveContainer = document.getElementById("archive");
   const appRoot = document.getElementById("app");
+
   if (!archiveContainer) {
     console.warn("Archive app: #archive non trovato");
     return;
   }
+
+  appRoot?.classList.remove("is-scene-ready", "is-ui-ready");
 
   showPreloader();
 
@@ -67,9 +70,17 @@ export async function initArchiveApp() {
 
   ui?.setMode("cosmic");
 
-window.setTimeout(() => {
-  hidePreloader();
-}, 1800);
+  window.setTimeout(() => {
+    appRoot?.classList.add("is-scene-ready");
+  }, 2200);
+
+  window.setTimeout(() => {
+    appRoot?.classList.add("is-ui-ready");
+  }, 2450);
+
+  window.setTimeout(() => {
+    hidePreloader();
+  }, 2850);
 
   return {
     scene,
