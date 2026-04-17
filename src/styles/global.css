@@ -4,6 +4,7 @@ body,
 #archive,
 #archive canvas {
   touch-action: none;
+  z-index: 3;
 }
 
 .camera-controls button,
@@ -547,6 +548,28 @@ body {
   user-select: none;
 }
 
+.track-placeholder {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(245, 239, 228, 0.16);
+  border: 1px solid rgba(245, 239, 228, 0.28);
+  box-shadow: 0 0 10px rgba(245, 239, 228, 0.08);
+  pointer-events: none;
+}
+
+.track-placeholder {
+  animation: placeholderPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes placeholderPulse {
+  0% { opacity: 0.18; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 0.34; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.18; transform: translate(-50%, -50%) scale(0.92); }
+}
+
 /* BACKGROUND OVERLAY */
 
 .bg-texture-overlay {
@@ -757,7 +780,7 @@ body {
   position: absolute;
   right: max(18px, env(safe-area-inset-right, 0));
   bottom: max(18px, env(safe-area-inset-bottom, 0));
-  height: 128px;
+  height: 230px;
   width: auto;
   opacity: 0.92;
   pointer-events: none;

@@ -55,6 +55,8 @@ export async function initArchiveOrbitScene({
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
+  const sheetInner = sheet?.querySelector(".track-sheet__inner");
+
   container.innerHTML = "";
 
   const nucleusLink = document.createElement("a");
@@ -765,9 +767,14 @@ function closeSheet(event) {
       event.stopPropagation();
     });
 
-    sheet?.addEventListener("pointerdown", (event) => {
-      event.stopPropagation();
-    });
+  sheet?.addEventListener("pointerdown", (event) => {
+    if (!sheetInner) return;
+
+    const clickedInside = sheetInner.contains(event.target);
+    if (!clickedInside) {
+      closeSheet(event);
+    }
+  });
 
     fakePlayBtn?.addEventListener("click", async () => {
       if (!currentTrackData?.audio) return;
