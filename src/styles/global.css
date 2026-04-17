@@ -270,7 +270,7 @@ body {
   appearance: none;
   border: 0;
   border-radius: 14px; /* meno arrotondato */
-  min-width: 74px;
+  min-width: 90px;
   height: 32px;
   padding: 0 18px;
   background: #0c0c0c;
@@ -384,6 +384,20 @@ body {
   pointer-events: none;
 }
 
+.track-sheet__logo {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+}
+
+.track-sheet__logo-img {
+  height: 140px;
+  width: auto;
+  bottom: 0;
+  transform: translateX(-50%) rotate(90deg);
+  transform-origin: bottom;
+}
+
 .track-sheet__play:hover,
 .track-sheet__action:hover,
 .track-sheet__icon:hover {
@@ -421,6 +435,11 @@ body {
     margin-bottom: 18px;
   }
 
+  
+  .track-sheet__play {
+    min-width: 75px;
+  }
+
   .track-sheet__actions {
     gap: 8px;
   }
@@ -456,16 +475,12 @@ body {
 }
 
 .center-logo {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: block;
   width: auto;
   height: auto;
   max-width: none;
   opacity: 0.92;
   pointer-events: none;
-  z-index: 31;
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.1));
 }
 
@@ -481,6 +496,23 @@ body {
   width: auto;
 }
 
+.center-logo-link {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 32;
+}
+
+.center-logo-link--top {
+  top: max(18px, env(safe-area-inset-top, 0));
+}
+
+.center-logo-link--bottom {
+  bottom: max(18px, env(safe-area-inset-bottom, 0));
+}
 /* LABELS */
 
 .label-layer {
@@ -534,14 +566,20 @@ body {
 
 @media (max-width: 700px) {
 
-  .center-logo--top {
+  .center-logo-link--top {
     top: 12px;
+  }
+
+  .center-logo-link--bottom {
+    bottom: 12px;
+  }
+
+  .center-logo--top {
     height: 80px;
     width: auto;
   }
 
   .center-logo--bottom {
-    bottom: 12px;
     height: 50px;
     width: auto;
   }

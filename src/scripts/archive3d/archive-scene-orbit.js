@@ -86,11 +86,29 @@ export async function initArchiveOrbitScene({
 
   let frame = document.createElement("div");
   frame.className = "keyvisual-frame";
-  frame.innerHTML = `
-    <img class="center-logo center-logo--top" src="/images/mhero-logo.png" alt="">
-    <img class="center-logo center-logo--bottom" src="/images/voyah-logo.png" alt="">
-    <img class="mdw-logo" src="/images/mdw.png" alt="Milano Design Week 2025">
-  `;
+frame.innerHTML = `
+  <a
+    class="center-logo-link center-logo-link--top"
+    href="https://m-hero.it/"
+    target="_blank"
+    rel="noopener"
+    aria-label="Apri il sito M-Hero"
+  >
+    <img class="center-logo center-logo--top" src="/images/mhero-logo.png" alt="M-Hero">
+  </a>
+
+  <a
+    class="center-logo-link center-logo-link--bottom"
+    href="https://voyah.it/"
+    target="_blank"
+    rel="noopener"
+    aria-label="Apri il sito Voyah"
+  >
+    <img class="center-logo center-logo--bottom" src="/images/voyah-logo.png" alt="Voyah">
+  </a>
+
+  <img class="mdw-logo" src="/images/mdw.png" alt="Milano Design Week 2025">
+`;
   container.appendChild(frame);
 
   const scene = new THREE.Scene();
@@ -108,6 +126,8 @@ export async function initArchiveOrbitScene({
   renderer.setSize(width, height);
   renderer.setClearColor(0x000000, 0);
   container.appendChild(renderer.domElement);
+
+  renderer.domElement.setAttribute("tabindex", "0");
 
   renderer.domElement.style.position = "absolute";
   renderer.domElement.style.inset = "0";
@@ -290,8 +310,8 @@ function updateListMetrics() {
       labelLayer?.appendChild(label);
 
       const radius = settings.innerRadius + day * settings.orbitGap;
-      const cosmicAngle = THREE.MathUtils.degToRad(-35);
-      const cosmicLabelOffset = 0.5;
+      const cosmicAngle = THREE.MathUtils.degToRad(-45);
+      const cosmicLabelOffset = 0.12;
 
       const cosmicAnchor = new THREE.Vector3(
         Math.cos(cosmicAngle) * (radius + cosmicLabelOffset),
@@ -512,17 +532,72 @@ function addTrack(trackData) {
     }
   }
 
-  const trackLabel = document.createElement("div");
-    trackLabel.className = "track-label";
-    trackLabel.textContent = trackData.title || `Track ${slot}`;
-    trackLabel.style.opacity = "0";
-    labelLayer?.appendChild(trackLabel);
+const trackLabel = document.createElement("div");
+trackLabel.className = "track-label";
+trackLabel.textContent = trackData.title || `Track ${slot}`;
+trackLabel.style.opacity = "0";
+trackLabel.style.pointerEvents = "none";
+trackLabel.setAttribute("role", "button");
+trackLabel.setAttribute("tabindex", "0");
+labelLayer?.appendChild(trackLabel);
 
-    trackLabels.push({
-      el: trackLabel,
-      anchor: mesh.userData.listPosition.clone(),
-      mesh
-    });
+trackLabel.addEventListener("pointerdown", (event) => {
+  event.stopPropagation();
+});
+
+trackLabel.addEventListener("click", (event) => {
+  event.stopPropagation();
+
+  const isListVisible = layoutLerp > 0.55;
+  if (!isListVisible) return;
+
+  const isSheetOpen = sheet?.classList.contains("is-open");
+
+  if (isSheetOpen && selectedSphere === mesh) {
+    closeSheet();
+    return;
+  }
+
+  selectedSphere = mesh;
+  hoveredSphere = mesh;
+  openSheet(mesh.userData);
+});
+
+trackLabel.addEventListener("mouseenter", () => {
+  if (layoutLerp > 0.55) {
+    hoveredSphere = mesh;
+  }
+});
+
+trackLabel.addEventListener("mouseleave", () => {
+  if (hoveredSphere === mesh) hoveredSphere = null;
+});
+
+trackLabel.addEventListener("keydown", (event) => {
+  const isListVisible = layoutLerp > 0.55;
+  if (!isListVisible) return;
+
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+
+    const isSheetOpen = sheet?.classList.contains("is-open");
+
+    if (isSheetOpen && selectedSphere === mesh) {
+      closeSheet();
+      return;
+    }
+
+    selectedSphere = mesh;
+    hoveredSphere = mesh;
+    openSheet(mesh.userData);
+  }
+});
+
+  trackLabels.push({
+    el: trackLabel,
+    anchor: mesh.userData.listPosition.clone(),
+    mesh
+  });
 }
 
   async function spawnTracksSequentially() {
@@ -652,29 +727,40 @@ async function refreshArchiveData() {
 
     sheet.classList.add("is-open");
     sheet.setAttribute("aria-hidden", "false");
+
+    closeSheetBtn?.focus();
   }
 
-  function closeSheet(event) {
-    event?.stopPropagation();
-    event?.preventDefault();
+    function closeSheet(event) {
+      event?.stopPropagation();
+      event?.preventDefault();
 
-    if (!sheet) return;
+      if (!sheet) return;
 
-    sheet.classList.remove("is-open");
-    sheet.setAttribute("aria-hidden", "true");
+      if (document.activeElement && sheet.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
 
-    selectedSphere = null;
-    hoveredSphere = null;
+      sheet.classList.remove("is-open");
+      sheet.setAttribute("aria-hidden", "true");
 
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
+      renderer.domElement?.focus?.();
+
+      sheet.classList.remove("is-open");
+      sheet.setAttribute("aria-hidden", "true");
+
+      selectedSphere = null;
+      hoveredSphere = null;
+
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      if (fakePlayBtn) fakePlayBtn.textContent = "Play";
+      if (progressEl) progressEl.value = 0;
+      if (shareBtn) shareBtn.textContent = "Condividi";
     }
-
-    if (fakePlayBtn) fakePlayBtn.textContent = "Play";
-    if (progressEl) progressEl.value = 0;
-    if (shareBtn) shareBtn.textContent = "Condividi";
-  }
 
   function bindUI() {
     closeSheetBtn?.addEventListener("click", closeSheet);
@@ -949,12 +1035,36 @@ renderer.domElement.addEventListener(
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   }
 
-  function pickSphere(clientX, clientY) {
-    setPointerFromEvent(clientX, clientY);
-    raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(trackMeshes, false);
-    return intersects.length ? intersects[0].object : null;
+function pickSphere(clientX, clientY) {
+  setPointerFromEvent(clientX, clientY);
+  raycaster.setFromCamera(pointer, camera);
+
+  const intersects = raycaster.intersectObjects(trackMeshes, false);
+  if (intersects.length) return intersects[0].object;
+
+  let closest = null;
+  let closestDist = Infinity;
+
+  for (const mesh of trackMeshes) {
+    const projected = mesh.position.clone().project(camera);
+
+    const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+    const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+
+    const dx = clientX - x;
+    const dy = clientY - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const tolerance = layoutLerp > 0.5 ? 28 : 18;
+
+    if (dist < tolerance && dist < closestDist) {
+      closest = mesh;
+      closestDist = dist;
+    }
   }
+
+  return closest;
+}
 
 
   function getTouchDistance(t1, t2) {
@@ -986,16 +1096,18 @@ renderer.domElement.addEventListener(
 
       sphere.position.lerpVectors(orbitPosition, listPosition, layoutLerp);
 
-      let targetScale = 1.22;
+      const inListView = layoutLerp > 0.5;
+
+      let targetScale = inListView ? 1.5 : 1.22;
       let emissive = 0.7;
 
       if (sphere === hoveredSphere) {
-        targetScale = 1.14;
+        targetScale = inListView ? 1.7 : 1.32;
         emissive = 0.40;
       }
 
       if (sphere === selectedSphere) {
-        targetScale = 1;
+        targetScale = inListView ? 1.82 : 1.42;
         emissive = 0.70;
       }
 
@@ -1011,18 +1123,18 @@ renderer.domElement.addEventListener(
 
       const glow = sphere.children[0];
       if (glow) {
-        let glowOpacity = 0.08;
-        let glowScale = 1.25;
+      let glowOpacity = inListView ? 0.1 : 0.08;
+      let glowScale = inListView ? 1.4 : 1.25;
 
-        if (sphere === hoveredSphere) {
-          glowOpacity = 0.10;
-          glowScale = 1.35;
-        }
+      if (sphere === hoveredSphere) {
+        glowOpacity = inListView ? 0.14 : 0.10;
+        glowScale = inListView ? 1.55 : 1.35;
+      }
 
-        if (sphere === selectedSphere) {
-          glowOpacity = 0.14;
-          glowScale = 1.45;
-        }
+      if (sphere === selectedSphere) {
+        glowOpacity = inListView ? 0.18 : 0.14;
+        glowScale = inListView ? 1.7 : 1.45;
+      }
 
         glow.material.opacity = glowOpacity;
         glow.scale.set(glowScale, glowScale, 1);
@@ -1088,52 +1200,50 @@ renderer.domElement.addEventListener(
       el.style.transform = `translate(-50%, -50%) translateY(${introYOffset}px)`;
 
       if (layoutLerp < 0.4) {
-        el.style.fontSize = "11px";
-        el.style.letterSpacing = "0.16em";
+        el.style.fontSize = "9px";
+        el.style.letterSpacing = "0.14em";
       } else {
-        el.style.fontSize = "12px";
-        el.style.letterSpacing = "0.12em";
+        el.style.fontSize = "10px";
+        el.style.letterSpacing = "0.11em";
       }
     }
     
 
-    for (const labelData of trackLabels) {
-      const { el, anchor, mesh } = labelData;
+  for (const labelData of trackLabels) {
+    const { el, anchor, mesh } = labelData;
 
-      const anchorPos = anchor.clone();
-      anchorPos.y += listScrollY;
+    const anchorPos = anchor.clone();
+    anchorPos.y += listScrollY;
 
-      const projected = anchorPos.project(camera);
+    const projected = anchorPos.project(camera);
 
-      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
-      const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+    const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+    const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
 
-      el.style.left = `${x + 28}px`;
-      el.style.top = `${y}px`;
-      el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.3) / 0.45))}`;
+    el.style.left = `${x + 28}px`;
+    el.style.top = `${y}px`;
+    el.style.opacity = `${Math.max(0, Math.min(1, (layoutLerp - 0.3) / 0.45))}`;
 
-      if (mesh === selectedSphere) {
-        el.style.fontWeight = "600";
-      } else {
-        el.style.fontWeight = "400";
-      }
+    const isListVisible = layoutLerp > 0.55;
+    el.style.pointerEvents = isListVisible ? "auto" : "none";
+
+    if (mesh === selectedSphere) {
+      el.style.fontWeight = "600";
+    } else {
+      el.style.fontWeight = "400";
     }
   }
+  }
 
-  function updateCamera() {
+function updateCamera() {
   cameraRadius += (targetCameraRadius - cameraRadius) * 0.08;
   listScrollY += (targetListScrollY - listScrollY) * 0.12;
 
   currentRotationX += (targetRotationX - currentRotationX) * 0.08;
   currentRotationY += (targetRotationY - currentRotationY) * 0.08;
+  rotationPhase += (rotationPhaseTarget - rotationPhase) * 0.08;
 
-  const camX = 0;
-  const camY = 0;
-  const camZ = cameraRadius;
-
-  camera.position.x = camX;
-  camera.position.y = camY;
-  camera.position.z = camZ;
+  camera.position.set(0, 0, cameraRadius);
   camera.lookAt(0, 0, 0);
 
   const idleRotationX = Math.sin(time * 0.22) * 0.03 * (1 - layoutLerp);
@@ -1142,8 +1252,6 @@ renderer.domElement.addEventListener(
   archiveGroup.rotation.x = idleRotationX + currentRotationX * (1 - layoutLerp);
   archiveGroup.rotation.y = idleRotationY + currentRotationY * (1 - layoutLerp);
   archiveGroup.rotation.z = 0;
-
-rotationPhase += (rotationPhaseTarget - rotationPhase) * 0.08;
 }
 
 function animate() {
@@ -1179,15 +1287,14 @@ function setCosmicMode() {
     targetCameraRadius = Math.min(CAMERA_MAX, targetCameraRadius + settings.zoomStep);
   }
 
-  function resetView() {
+function resetView() {
   targetCameraRadius = CAMERA_DEFAULT;
   targetListScrollY = 0;
+
   targetRotationX = 0;
   targetRotationY = 0;
-  currentRotationX = 0;
-  currentRotationY = 0;
-rotationPhase = 0;
-rotationPhaseTarget = 0;
+  rotationPhaseTarget = 0;
+
   setCosmicMode();
   closeSheet();
 }

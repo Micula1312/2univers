@@ -64,9 +64,9 @@ export async function initArchiveApp() {
     },
 
     onCosmicMode: () => {
-      scene.setCosmicMode();
+      scene.resetView();
       ui?.setMode("cosmic");
-    }
+    },  
   });
 
   ui?.setMode("cosmic");
