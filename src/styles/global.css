@@ -742,13 +742,13 @@ body {
 
   .preloader__title-side--left {
     right: 50%;
-    margin-right: 56px;
+    margin-right: 3px;
     transform: translateX(-22px) translateY(-50%);
   }
 
   .preloader__title-side--right {
     left: 50%;
-    margin-left: 56px;
+    margin-left: 3px;
     transform: translateX(22px) translateY(-50%);
   }
 }
@@ -769,7 +769,7 @@ body {
   .mdw-logo {
     right: 10px;
     bottom: 10px;
-    height: 96px;
+    height: 128px;
   }
 }
 

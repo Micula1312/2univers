@@ -731,36 +731,33 @@ async function refreshArchiveData() {
     closeSheetBtn?.focus();
   }
 
-    function closeSheet(event) {
-      event?.stopPropagation();
-      event?.preventDefault();
+function closeSheet(event) {
+  event?.stopPropagation();
+  event?.preventDefault();
 
-      if (!sheet) return;
+  if (!sheet) return;
 
-      if (document.activeElement && sheet.contains(document.activeElement)) {
-        document.activeElement.blur();
-      }
+  if (document.activeElement && sheet.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
 
-      sheet.classList.remove("is-open");
-      sheet.setAttribute("aria-hidden", "true");
+  sheet.classList.remove("is-open");
+  sheet.setAttribute("aria-hidden", "true");
 
-      renderer.domElement?.focus?.();
+  renderer.domElement?.focus?.();
 
-      sheet.classList.remove("is-open");
-      sheet.setAttribute("aria-hidden", "true");
+  selectedSphere = null;
+  hoveredSphere = null;
 
-      selectedSphere = null;
-      hoveredSphere = null;
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+  }
 
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-      }
-
-      if (fakePlayBtn) fakePlayBtn.textContent = "Play";
-      if (progressEl) progressEl.value = 0;
-      if (shareBtn) shareBtn.textContent = "Condividi";
-    }
+  if (fakePlayBtn) fakePlayBtn.textContent = "Play";
+  if (progressEl) progressEl.value = 0;
+  if (shareBtn) shareBtn.classList.remove("is-copied");
+}
 
   function bindUI() {
     closeSheetBtn?.addEventListener("click", closeSheet);
