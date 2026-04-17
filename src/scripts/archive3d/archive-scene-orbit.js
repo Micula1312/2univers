@@ -194,6 +194,12 @@ export async function initArchiveOrbitScene({
   let currentRotationX = 0;
   let currentRotationY = 0;
 
+let rotationPhase = 0;
+let rotationPhaseTarget = 0;
+
+const ROTATION_CYCLE_CLICKS = 16;
+const ROTATION_PHASE_STEP = (Math.PI * 2) / ROTATION_CYCLE_CLICKS;
+
   const CAMERA_MIN = settings.zoomMin;
   const CAMERA_MAX = settings.zoomMax;
   const CAMERA_DEFAULT = settings.cosmicCameraZ;
@@ -333,15 +339,18 @@ function updateListMetrics() {
     }
   }
 
-  function updateOrbitLines() {
+function updateOrbitLines() {
   const segments = 128;
   const halfLineWidth = 5.4;
 
   for (const orbit of orbitLines) {
     const { line, dayIndex, radius } = orbit;
     const points = [];
-
     const targetY = getDayListLineY(dayIndex) + listScrollY;
+
+    const spreadAngle = getSpreadAngle(dayIndex);
+    const cosA = Math.cos(spreadAngle);
+    const sinA = Math.sin(spreadAngle);
 
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
@@ -350,13 +359,17 @@ function updateListMetrics() {
       const circleX = Math.cos(angle) * radius;
       const circleY = Math.sin(angle) * radius;
 
+      const rotatedX = circleX * cosA;
+      const rotatedZ = -circleX * sinA;
+
       const lineX = THREE.MathUtils.lerp(-halfLineWidth, halfLineWidth, t);
       const lineY = targetY;
 
-      const x = THREE.MathUtils.lerp(circleX, lineX, layoutLerp);
+      const x = THREE.MathUtils.lerp(rotatedX, lineX, layoutLerp);
       const y = THREE.MathUtils.lerp(circleY, lineY, layoutLerp);
+      const z = THREE.MathUtils.lerp(rotatedZ, 0, layoutLerp);
 
-      points.push(new THREE.Vector3(x, y, 0));
+      points.push(new THREE.Vector3(x, y, z));
     }
 
     points.push(points[0].clone());
@@ -560,6 +573,32 @@ async function refreshArchiveData() {
     );
   }
 
+
+  function getSpreadOrbitPosition(dayIndex, slotIndex) {
+    const base = getOrbitPosition(dayIndex, slotIndex);
+    const spreadAngle = getSpreadAngle(dayIndex);
+
+    const cosA = Math.cos(spreadAngle);
+    const sinA = Math.sin(spreadAngle);
+
+    return new THREE.Vector3(
+      base.x * cosA,
+      base.y,
+      -base.x * sinA
+    );
+  }
+
+  function getSpreadAngle(dayIndex) {
+  const wrappedPhase =
+    ((rotationPhase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+
+  const orbitMultiplier = dayIndex + 1;
+
+  return wrappedPhase * orbitMultiplier;
+}
+
+
+
   function getListPosition(dayIndex, slotIndex) {
     const absoluteIndex = dayIndex * settings.slotsPerDay + slotIndex;
     const extraOffset = dayIndex * (dayGap - itemGap);
@@ -712,9 +751,10 @@ async function refreshArchiveData() {
           });
         } else {
           await navigator.clipboard.writeText(shareUrl);
-          shareBtn.textContent = "Link copiato";
+          shareBtn.classList.add("is-copied");
+
           window.setTimeout(() => {
-            shareBtn.textContent = "Condividi";
+            shareBtn.classList.remove("is-copied");
           }, 1400);
         }
       } catch (error) {
@@ -937,7 +977,10 @@ renderer.domElement.addEventListener(
     updateOrbitLines();
 
     for (const sphere of trackMeshes) {
-      const orbitPosition = sphere.userData.orbitPosition;
+      const orbitPosition = getSpreadOrbitPosition(
+        sphere.userData.dayIndex,
+        sphere.userData.slotIndex
+      );
       const listPosition = sphere.userData.listPosition.clone();
       listPosition.y += listScrollY;
 
@@ -1100,6 +1143,7 @@ renderer.domElement.addEventListener(
   archiveGroup.rotation.y = idleRotationY + currentRotationY * (1 - layoutLerp);
   archiveGroup.rotation.z = 0;
 
+rotationPhase += (rotationPhaseTarget - rotationPhase) * 0.08;
 }
 
 function animate() {
@@ -1142,13 +1186,14 @@ function setCosmicMode() {
   targetRotationY = 0;
   currentRotationX = 0;
   currentRotationY = 0;
+rotationPhase = 0;
+rotationPhaseTarget = 0;
   setCosmicMode();
   closeSheet();
 }
 
 function rotateToNextSlot() {
-  const stepAngle = (Math.PI * 2) / settings.slotsPerDay;
-  targetRotationY -= stepAngle;
+  rotationPhaseTarget += ROTATION_PHASE_STEP;
   closeSheet();
 }
 

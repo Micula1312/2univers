@@ -46,9 +46,12 @@ import "../styles/global.css";
       <div id="archive"></div>
 
       <div id="trackSheet" class="track-sheet" aria-hidden="true">
-        <button id="closeSheet" class="track-sheet__close" type="button" aria-label="Close">×</button>
 
         <div class="track-sheet__inner">
+
+          <button id="closeSheet" class="track-sheet__close" type="button" aria-label="Close">
+            <img src="/images/assets/btn-PLUS.png" alt="">
+          </button>
           <p class="track-sheet__eyebrow">Audio Experience</p>
           <h2 id="trackTitle" class="track-sheet__title">Trace</h2>
           <p id="trackMeta" class="track-sheet__meta">Day 1 · Slot 1</p>
@@ -68,13 +71,15 @@ import "../styles/global.css";
           </div>
 
           <div class="track-sheet__actions">
-            <button id="shareTrack" class="track-sheet__icon">
-              <img src="/images/assets/btn-MINUS.png" alt="Share">
+
+            <button id="shareTrack" class="track-sheet__icon" type="button" aria-label="Share track">
+              <img src="/images/assets/btn-SHARE.png" alt="">
             </button>
 
-            <a id="downloadTrack" class="track-sheet__icon" href="#" download>
-              <img src="/images/assets/btn-MINUS.png" alt="Download">
+            <a id="downloadTrack" class="track-sheet__icon" href="#" aria-label="Download track">
+              <img src="/images/assets/btn-DOWNLOAD.png" alt="">
             </a>
+
           </div>
         </div>
       </div>

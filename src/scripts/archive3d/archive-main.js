@@ -37,7 +37,7 @@ export async function initArchiveApp() {
 
   ui = initUI({
     assets: {
-      plus: "images/assets/btn-plus.png",
+      plus: "images/assets/btn-PLUS.png",
       minus: "images/assets/btn-MINUS.png",
       reset: "images/assets/btn-RESET.png",
       archive: "images/assets/btn-ARCHIVE.png",
