@@ -3,28 +3,5 @@
     "totalDays": 8,
     "slotsPerDay": 8
   },
-
-  "tracks": [
-    {
-      "id": "d1s1",
-      "title": "Trace 01",
-      "day": 1,
-      "slot": 1,
-      "audio": "audio/test.mp3"
-    },
-    {
-      "id": "d1s2",
-      "title": "Trace 02",
-      "day": 1,
-      "slot": 2,
-      "audio": "audio/test.mp3"
-    },
-    {
-      "id": "d2s1",
-      "title": "Trace 03",
-      "day": 2,
-      "slot": 1,
-      "audio": "audio/test.mp3"
-    }
-  ]
+  "tracks": []
 }

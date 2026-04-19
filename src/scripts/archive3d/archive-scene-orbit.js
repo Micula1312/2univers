@@ -277,7 +277,7 @@ function updateListMetrics() {
   animate();
   await spawnTracksSequentially();
 
-  const REFRESH_INTERVAL = 1 * 60 * 1000; // 1 minuti
+  const REFRESH_INTERVAL = 5 * 60 * 1000;
   // const REFRESH_INTERVAL = 500000; // 10 secondi
   setInterval(refreshArchiveData, REFRESH_INTERVAL);
 
