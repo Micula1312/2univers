@@ -210,6 +210,8 @@ const pointer = new THREE.Vector2();
   let touchStartY = 0;
   let touchMoved = false;
 
+  let ignoreClickUntil = 0;
+
   let isRotating = false;
   let rotateStartX = 0;
   let rotateStartY = 0;
@@ -883,6 +885,8 @@ renderer.domElement.addEventListener("pointermove", (event) => {
 });
 
 renderer.domElement.addEventListener("click", (event) => {
+  if (Date.now() < ignoreClickUntil) return;
+
   const hitSphere = pickSphere(event.clientX, event.clientY);
   if (!hitSphere) return;
 
@@ -998,6 +1002,7 @@ renderer.domElement.addEventListener(
   "touchend",
   (event) => {
     if (!touchMoved && event.changedTouches.length > 0) {
+      ignoreClickUntil = Date.now() + 500;
       const touch = event.changedTouches[0];
       const hitSphere = pickSphere(touch.clientX, touch.clientY);
 
