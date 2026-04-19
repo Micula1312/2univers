@@ -277,8 +277,8 @@ function updateListMetrics() {
   animate();
   await spawnTracksSequentially();
 
-  const REFRESH_INTERVAL = 5 * 60 * 1000;
-  // const REFRESH_INTERVAL = 500000; // 10 secondi
+  // const REFRESH_INTERVAL = 5 * 60 * 1000;
+  const REFRESH_INTERVAL = 500000; // 10 secondi
   setInterval(refreshArchiveData, REFRESH_INTERVAL);
 
   function buildOrbitSystem() {
