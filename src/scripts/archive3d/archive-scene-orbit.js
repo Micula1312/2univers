@@ -35,6 +35,8 @@ export async function initArchiveOrbitScene({
   }
 
   const settings = { ...DEFAULTS, ...options };
+  const isMobile = window.innerWidth < 768;
+  const TAP_MOVE_THRESHOLD = isMobile ? 14 : 8;
 
   const labelLayer = document.getElementById("labelLayer");
   if (labelLayer) labelLayer.innerHTML = "";
@@ -174,8 +176,9 @@ frame.innerHTML = `
   const orbitLines = [];
   const knownTrackKeys = new Set();
 
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+raycaster.params.Mesh.threshold = isMobile ? 0.25 : 0.1;
+const pointer = new THREE.Vector2();
 
   let archiveData = [];
   let hoveredSphere = null;
@@ -450,8 +453,12 @@ function updateOrbitLines() {
       const dayIndex = (trackData.dayIndex ?? trackData.day ?? 1) - 1;
       const slotIndex = (trackData.slotIndex ?? trackData.slot ?? 1) - 1;
 
+      const mobileSphereRadius = isMobile
+        ? settings.sphereRadius * 1.18
+        : settings.sphereRadius;
+
       const geometry = new THREE.SphereGeometry(
-        settings.sphereRadius,
+        mobileSphereRadius,
         settings.sphereSegments,
         settings.sphereSegments
       );
@@ -934,8 +941,8 @@ renderer.domElement.addEventListener("click", (event) => {
           const deltaY = touch.clientY - lastTouchY;
 
           if (
-            Math.abs(touch.clientY - touchStartY) > 8 ||
-            Math.abs(touch.clientX - touchStartX) > 8
+            Math.abs(touch.clientY - touchStartY) > TAP_MOVE_THRESHOLD ||
+            Math.abs(touch.clientX - touchStartX) > TAP_MOVE_THRESHOLD
           ) {
             touchMoved = true;
           }
@@ -1059,7 +1066,9 @@ function pickSphere(clientX, clientY) {
     const dy = clientY - y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    const tolerance = layoutLerp > 0.5 ? 28 : 18;
+    const tolerance = layoutLerp > 0.5
+      ? (isMobile ? 42 : 28)
+      : (isMobile ? 30 : 18);
 
     if (dist < tolerance && dist < closestDist) {
       closest = mesh;
