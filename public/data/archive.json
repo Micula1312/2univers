@@ -1,7 +1,83 @@
 {
-  "config": {
-    "totalDays": 8,
-    "slotsPerDay": 8
-  },
-  "tracks": []
+  "tracks": [
+    {
+      "day": 1,
+      "slot": 1,
+      "title": "Icarus",
+      "audio": "/audio/d01_s01_prova.mp3"
+    },
+
+    {
+      "day": 2,
+      "slot": 1,
+      "title": "Earendel",
+      "audio": "/audio/d02_s01_prova.mp3"
+    },
+    {
+      "day": 2,
+      "slot": 2,
+      "title": "Deneb",
+      "audio": "/audio/d02_s02_prova.mp3"
+    },
+
+    {
+      "day": 3,
+      "slot": 1,
+      "title": "Altair",
+      "audio": "/audio/d03_s01_prova.mp3"
+    },
+    {
+      "day": 3,
+      "slot": 2,
+      "title": "Rigel",
+      "audio": "/audio/d03_s02_prova.mp3"
+    },
+    {
+      "day": 3,
+      "slot": 3,
+      "title": "Vega",
+      "audio": "/audio/d03_s03_prova.mp3"
+    },
+
+    {
+      "day": 4,
+      "slot": 1,
+      "title": "Sirius",
+      "audio": "/audio/d01_s01_prova.mp3"
+    },
+
+    {
+      "day": 5,
+      "slot": 1,
+      "title": "Polaris",
+      "audio": "/audio/d01_s01_prova.mp3"
+    },
+    {
+      "day": 5,
+      "slot": 2,
+      "title": "Betelgeuse",
+      "audio": "/audio/d01_s02_prova.mp3"
+    },
+
+    {
+      "day": 6,
+      "slot": 1,
+      "title": "Antares",
+      "audio": "/audio/d01_s01_prova.mp3"
+    },
+
+    {
+      "day": 7,
+      "slot": 1,
+      "title": "Canopus",
+      "audio": "/audio/d01_s01_prova.mp3"
+    },
+
+    {
+      "day": 8,
+      "slot": 1,
+      "title": "Arcturus",
+      "audio": "/audio/d01_s01_prova.mp3"
+    }
+  ]
 }

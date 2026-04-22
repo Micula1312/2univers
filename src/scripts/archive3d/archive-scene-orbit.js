@@ -243,18 +243,62 @@ const ROTATION_PHASE_STEP = (Math.PI * 2) / ROTATION_CYCLE_CLICKS;
   const visibleListHeight = 12;
   let maxListScroll = 0;
 
-function updateListMetrics() {
-    columnHeight =
-      settings.totalDays * settings.slotsPerDay * itemGap +
-      (settings.totalDays - 1) * (dayGap - itemGap);
+function getTrackDay(track) {
+  return Math.max(1, Number(track.dayIndex ?? track.day ?? 1));
+}
 
-    listTopY = listStartY;
+function getTrackSlot(track) {
+  return Math.max(1, Number(track.slotIndex ?? track.slot ?? 1));
+}
 
-    maxListScroll = Math.max(
-      0,
-      columnHeight - visibleListHeight
-    );
+function groupTracksByDay(tracks) {
+  const map = new Map();
+
+  for (const track of tracks) {
+    const day = getTrackDay(track);
+    if (!map.has(day)) map.set(day, []);
+    map.get(day).push(track);
   }
+
+  for (const [, dayTracks] of map) {
+    dayTracks.sort((a, b) => getTrackSlot(a) - getTrackSlot(b));
+  }
+
+  return map;
+}
+
+function getVisibleDays(tracks) {
+  return [...groupTracksByDay(tracks).keys()].sort((a, b) => a - b);
+}
+
+function getTrackIndexInDay(track, groupedTracks) {
+  const day = getTrackDay(track);
+  const dayTracks = groupedTracks.get(day) || [];
+  const slot = getTrackSlot(track);
+
+  return dayTracks.findIndex((item) => getTrackSlot(item) === slot);
+}
+
+function updateListMetrics() {
+  const grouped = groupTracksByDay(archiveData);
+  const visibleDays = getVisibleDays(archiveData);
+
+  let totalHeight = 0;
+
+  visibleDays.forEach((dayNumber, index) => {
+    const dayTracks = grouped.get(dayNumber) || [];
+    const tracksHeight = dayTracks.length * itemGap;
+    totalHeight += tracksHeight;
+
+    if (index < visibleDays.length - 1) {
+      totalHeight += dayGap;
+    }
+  });
+
+  columnHeight = totalHeight;
+  listTopY = listStartY;
+  maxListScroll = Math.max(0, columnHeight - visibleListHeight);
+}
 
   async function loadArchiveData() {
   try {
@@ -308,12 +352,16 @@ function updateListMetrics() {
       });
     }
 
-  for (let day = 0; day < settings.totalDays; day++) {
+    for (let day = 0; day < settings.totalDays; day++) {
+      const dayNumber = day + 1;
+      const hasTracks = archiveData.some((track) => getTrackDay(track) === dayNumber);
+
       const label = document.createElement("div");
       label.className = "day-label";
-      label.textContent = `DAY ${day + 1}`;
+      label.textContent = `DAY ${dayNumber}`;
       label.style.opacity = "0";
       label.style.transform = "translate(-50%, -50%) translateY(8px)";
+      label.dataset.hasTracks = hasTracks ? "1" : "0";
       labelLayer?.appendChild(label);
 
       const radius = settings.innerRadius + day * settings.orbitGap;
@@ -335,35 +383,11 @@ function updateListMetrics() {
       dayLabels.push({
         el: label,
         cosmicAnchor,
-        listAnchor
+        listAnchor,
+        hasTracks
       });
     }
-    for (let day = 0; day < settings.totalDays; day++) {
-      for (let slot = 0; slot < settings.slotsPerDay; slot++) {
-        const dayNumber = day + 1;
-        const slotNumber = slot + 1;
 
-        const trackExists = archiveData.some((track) => {
-          const trackDay = track.dayIndex ?? track.day ?? 1;
-          const trackSlot = track.slotIndex ?? track.slot ?? 1;
-          return trackDay === dayNumber && trackSlot === slotNumber;
-        });
-
-        if (trackExists) continue;
-
-        const placeholder = document.createElement("div");
-        placeholder.className = "track-placeholder";
-        placeholder.style.opacity = "0";
-        labelLayer?.appendChild(placeholder);
-
-        placeholderLabels.push({
-          el: placeholder,
-          anchor: getListPosition(day, slot).clone(),
-          dayIndex: day,
-          slotIndex: slot
-        });
-      }
-    }
   }
 
 function updateOrbitLines() {
@@ -493,8 +517,8 @@ function updateOrbitLines() {
       sphereGlow.scale.set(2.2, 2.2, 1);
       mesh.add(sphereGlow);
 
-      const orbitPos = getOrbitPosition(dayIndex, slotIndex);
-      const listPos = getListPosition(dayIndex, slotIndex);
+      const orbitPos = getOrbitPosition(trackData);
+      const listPos = getListPositionForTrack(trackData);
 
       mesh.position.copy(orbitPos);
 
@@ -534,14 +558,6 @@ function addTrack(trackData) {
   const dayIndex = (trackData.dayIndex ?? trackData.day ?? 1) - 1;
   const slotIndex = (trackData.slotIndex ?? trackData.slot ?? 1) - 1;
 
-  for (let i = placeholderLabels.length - 1; i >= 0; i--) {
-    const p = placeholderLabels[i];
-    if (p.dayIndex === dayIndex && p.slotIndex === slotIndex) {
-      p.el.remove();
-      placeholderLabels.splice(i, 1);
-      break;
-    }
-  }
 
 const trackLabel = document.createElement("div");
 trackLabel.className = "track-label";
@@ -631,6 +647,7 @@ async function refreshArchiveData() {
     const nextTracks = Array.isArray(json?.tracks) ? json.tracks : [];
 
     archiveData = nextTracks;
+    updateListMetrics();
 
     for (const track of nextTracks) {
       const day = track.dayIndex ?? track.day ?? 1;
@@ -646,11 +663,23 @@ async function refreshArchiveData() {
   }
 }
 
-  function getOrbitPosition(dayIndex, slotIndex) {
+  function getOrbitPosition(trackData) {
+    const grouped = groupTracksByDay(archiveData);
+    const day = getTrackDay(trackData);
+    const dayIndex = day - 1;
+    const dayTracks = grouped.get(day) || [];
+
+    const count = dayTracks.length;
     const radius = settings.innerRadius + dayIndex * settings.orbitGap;
     const rotationOffset = THREE.MathUtils.degToRad(18);
-    const angle =
-      (slotIndex / settings.slotsPerDay) * Math.PI * 2 - Math.PI / 2 + rotationOffset;
+
+    let angle = -Math.PI / 2 + rotationOffset;
+
+    if (count > 1) {
+      const indexInDay = getTrackIndexInDay(trackData, grouped);
+      const step = (Math.PI * 2) / count;
+      angle = -Math.PI / 2 + rotationOffset + indexInDay * step;
+    }
 
     return new THREE.Vector3(
       Math.cos(angle) * radius,
@@ -660,8 +689,9 @@ async function refreshArchiveData() {
   }
 
 
-  function getSpreadOrbitPosition(dayIndex, slotIndex) {
-    const base = getOrbitPosition(dayIndex, slotIndex);
+  function getSpreadOrbitPosition(trackData) {
+    const dayIndex = getTrackDay(trackData) - 1;
+    const base = getOrbitPosition(trackData);
     const spreadAngle = getSpreadAngle(dayIndex);
 
     const cosA = Math.cos(spreadAngle);
@@ -695,14 +725,54 @@ async function refreshArchiveData() {
     return new THREE.Vector3(x, y, 0);
   }
 
-  function getDayListLineY(dayIndex) {
-    const firstSlotPos = getListPosition(dayIndex, 0);
-    return firstSlotPos.y + labelGap - 0.35;
+function getListPositionForTrack(trackData) {
+  const grouped = groupTracksByDay(archiveData);
+  const visibleDays = getVisibleDays(archiveData);
+
+  const day = getTrackDay(trackData);
+  const dayTracks = grouped.get(day) || [];
+  const indexInDay = getTrackIndexInDay(trackData, grouped);
+
+  const visibleDayIndex = visibleDays.indexOf(day);
+
+  let yOffset = 0;
+
+  for (let i = 0; i < visibleDayIndex; i++) {
+    const prevDay = visibleDays[i];
+    const prevTracks = grouped.get(prevDay) || [];
+    yOffset += prevTracks.length * itemGap;
+    yOffset += dayGap;
   }
 
-  function getDayListLabelY(dayIndex) {
-    return getDayListLineY(dayIndex) + 0.32;
+  const y = listTopY - yOffset - indexInDay * itemGap;
+  return new THREE.Vector3(listX, y, 0);
+}
+
+
+function getDayListLineY(dayIndex) {
+  const grouped = groupTracksByDay(archiveData);
+  const visibleDays = getVisibleDays(archiveData);
+  const dayNumber = dayIndex + 1;
+
+  const visibleDayIndex = visibleDays.indexOf(dayNumber);
+  if (visibleDayIndex === -1) return 9999;
+
+  let yOffset = 0;
+
+  for (let i = 0; i < visibleDayIndex; i++) {
+    const prevDay = visibleDays[i];
+    const prevTracks = grouped.get(prevDay) || [];
+    yOffset += prevTracks.length * itemGap;
+    yOffset += dayGap;
   }
+
+  const firstTrackY = listTopY - yOffset;
+  return firstTrackY + labelGap - 0.35;
+}
+
+function getDayListLabelY(dayIndex) {
+  return getDayListLineY(dayIndex) + 0.32;
+}
 
   function openSheet(data) {
     if (!sheet || !titleEl || !metaEl) return;
@@ -1105,10 +1175,10 @@ function pickSphere(clientX, clientY) {
     updateOrbitLines();
 
     for (const sphere of trackMeshes) {
-      const orbitPosition = getSpreadOrbitPosition(
-        sphere.userData.dayIndex,
-        sphere.userData.slotIndex
-      );
+      sphere.userData.orbitPosition.copy(getOrbitPosition(sphere.userData.trackData));
+      sphere.userData.listPosition.copy(getListPositionForTrack(sphere.userData.trackData));
+      
+      const orbitPosition = getSpreadOrbitPosition(sphere.userData.trackData);
       const listPosition = sphere.userData.listPosition.clone();
       listPosition.y += listScrollY;
 
@@ -1159,24 +1229,6 @@ function pickSphere(clientX, clientY) {
       }
     }
 
-    for (const placeholderData of placeholderLabels) {
-      const { el, anchor } = placeholderData;
-
-      const anchorPos = anchor.clone();
-      anchorPos.y += listScrollY;
-
-      const projected = anchorPos.project(camera);
-
-      const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
-      const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
-
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-
-      const opacity = Math.max(0, Math.min(1, (layoutLerp - 0.3) / 0.45));
-      el.style.opacity = `${opacity}`;
-    }
-
     for (const orbit of orbitLines) {
       orbit.line.material.opacity = THREE.MathUtils.lerp(
         settings.orbitOpacity,
@@ -1209,8 +1261,10 @@ function pickSphere(clientX, clientY) {
       const cosmicOpacity = 1 - Math.max(0, Math.min(1, layoutLerp / 0.35));
       const listOpacity = Math.max(0, Math.min(1, (layoutLerp - 0.2) / 0.5));
 
+      const effectiveListOpacity = labelData.hasTracks ? listOpacity : 0;
+      const baseOpacity = Math.max(cosmicOpacity, effectiveListOpacity);
+
       const introT = labelData.introT ?? 0;
-      const baseOpacity = Math.max(cosmicOpacity, listOpacity);
 
       el.style.opacity = `${baseOpacity * introT}`;
 
